@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "feature-lifecycle",
+  "description": "Complete feature lifecycle: discovery, planning, delivery, review, and ship.",
+  "owner": {
+    "name": "rmolines"
+  },
+  "plugins": [
+    {
+      "name": "feature-lifecycle",
+      "description": "Complete feature lifecycle: discovery, planning, delivery, review, and ship. Transforms ideas into validated PRDs, executable plans, working code, and production deployments.",
+      "version": "0.1.0",
+      "source": "./",
+      "category": "development"
+    }
+  ]
+}
