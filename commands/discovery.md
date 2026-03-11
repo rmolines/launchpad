@@ -1,5 +1,5 @@
 ---
-description: "Iterative risk reduction that produces an agent-ready PRD. Transforms a vague idea into a validated PRD through conversation and investigation cycles. Use when the user says 'tenho uma ideia', 'quero explorar', 'new feature', 'vamos fazer X', 'I want to build', 'let's explore', 'what if we', or describes a vague idea for a feature/product."
+description: "Iterative risk reduction that produces an agent-ready PRD. Transforms a vague idea into a validated PRD through conversation and investigation cycles."
 argument-hint: "slug, idea, --sketch <slug> <idea>, --finalize, or --status"
 ---
 
