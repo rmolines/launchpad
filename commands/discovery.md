@@ -1,6 +1,6 @@
 ---
-description: "Iterative risk reduction that produces an agent-ready PRD. Transforms a vague idea into a validated PRD through conversation and investigation cycles."
-argument-hint: "slug, idea, question, or --finalize"
+description: "Iterative risk reduction that produces an agent-ready PRD. Transforms a vague idea into a validated PRD through conversation and investigation cycles. Use when the user says 'tenho uma ideia', 'quero explorar', 'new feature', 'vamos fazer X', 'I want to build', 'let's explore', 'what if we', or describes a vague idea for a feature/product."
+argument-hint: "slug, idea, --sketch <slug> <idea>, --finalize, or --status"
 ---
 
 # /discovery
@@ -82,6 +82,7 @@ fi
 
 - Contains `/` → explicit `<project>/<feature>` path
 - Simple slug → feature name (inside detected project) or project name (outside repo)
+- `--sketch <slug> <idea>` → quick draft mode (see below)
 - `--finalize` → jump to finalization
 - `--status` → show portfolio view (see below)
 - Empty → show portfolio view if discoveries exist, then ask what to explore
@@ -116,8 +117,31 @@ State is determined by file presence:
 After showing the portfolio, ask what the user wants to do: resume an existing
 discovery, start a new one, or finalize one that's ready.
 
+### Quick draft mode (`--sketch`)
+
+When called with `--sketch`, skip all conversation and save a raw idea as a draft.
+
+Usage: `/discovery --sketch <slug> <one-liner idea>`
+
+1. Create `~/.claude/discoveries/$REPO_NAME/<slug>/draft.md` from the PRD template
+2. Fill **Problem** with the one-liner as-is (no refinement, no Socratic questioning)
+3. Leave everything else blank or minimal
+4. Set status to `draft`
+5. Confirm:
+```
+Draft parked: <slug>
+Resume later: /discovery <slug>
+```
+
+That's it. No framing, no risk identification, no cycles. The user will come back
+with `/discovery <slug>` when ready to go deeper.
+
+If the slug already has a `draft.md`: append the idea to the Problem section
+(accumulate notes) and confirm: `"Added to existing draft: <slug>"`
+
 ### Route
 
+- **`--sketch` flag** → quick draft mode (above). No conversation.
 - **`draft.md` exists** → resume. Read draft, list completed cycles, ask which risk to tackle next.
 - **`prd.md` exists** → already finalized. Ask: reopen or proceed to `/planning`?
 - **Nothing exists** → new discovery. Start with framing.

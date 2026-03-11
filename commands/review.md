@@ -1,5 +1,5 @@
 ---
-description: "Decision gate that validates implementation against PRD. Spawns an independent evaluator, then decides: back to planning, back to delivery, or approved for ship."
+description: "Decision gate that validates implementation against PRD. Spawns an independent evaluator, then decides: back to planning, back to delivery, or approved for ship. Use when the user says 'revisa isso', 'review this', 'tá pronto pra review', 'valida contra o PRD', 'check against the PRD', or asks to validate implementation."
 argument-hint: "<repo>/<feature>"
 ---
 
