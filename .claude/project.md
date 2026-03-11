@@ -15,8 +15,8 @@ test: claude plugin validate .
 - commands/delivery.md
 - commands/review.md
 - commands/ship.md
-- references/prd-template.md
-- references/plan-template.md
+- templates/prd-template.md
+- templates/plan-template.md
 - .claude-plugin/plugin.json
 - .claude-plugin/marketplace.json
 

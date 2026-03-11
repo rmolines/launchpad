@@ -250,7 +250,7 @@ Batch 3 (sequential): D5 depends on D3 and D4
 ### Execution DAG (machine-readable)
 
 Include a parseable DAG section that `/delivery` reads to schedule execution.
-See `references/schemas.md` for the full format.
+See `templates/schemas.md` for the full format.
 
 ```markdown
 ## Execution DAG
@@ -314,7 +314,7 @@ Wait for the user's response:
 After approval, save to the same directory as prd.md:
 `~/.claude/discoveries/<repo>/<feature>/plan.md`
 
-Use the template from `references/plan-template.md` as the base structure.
+Use the template from `templates/plan-template.md` as the base structure.
 
 Confirm:
 ```

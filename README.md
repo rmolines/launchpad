@@ -207,9 +207,14 @@ The plugin's multi-agent design is aligned with Anthropic's "Building Effective 
 │   ├── delivery.md
 │   ├── review.md
 │   └── ship.md
-└── references/
-    ├── prd-template.md
-    └── plan-template.md
+├── templates/
+│   ├── prd-template.md
+│   ├── plan-template.md
+│   └── schemas.md
+└── docs/
+    ├── contracts.md
+    ├── research.md
+    └── thesis.md
 ```
 
 ## Installation

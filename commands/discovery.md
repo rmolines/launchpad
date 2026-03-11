@@ -234,7 +234,7 @@ ask the human.
 Write `cycles/01-framing-<desc>.md` with: risk investigated, method, discoveries, decision,
 identified risks for investigation.
 
-Create `draft.md` from the PRD template (`references/prd-template.md`):
+Create `draft.md` from the PRD template (`templates/prd-template.md`):
 - Fill **Problem** with the crystallized formulation
 - Leave **Solution** and **Out-of-scope** as initial hypotheses or blank
 - Set status to `draft`
