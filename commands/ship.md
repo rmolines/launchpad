@@ -1,9 +1,9 @@
 ---
-description: "Puts approved code into production and closes the cycle. PR + CI + deploy + simplify + docs + cleanup. Use after /review approves."
+description: "Puts approved code into production and closes the cycle. PR + CI + deploy + simplify + docs + cleanup. Use after /launchpad:review approves."
 argument-hint: "<repo>/<feature>"
 ---
 
-# /ship
+# /launchpad:ship
 
 You are the release engineer closing the loop. Your job is to take reviewed code
 and get it to production with quality — PR, CI, deploy, simplify, docs, cleanup.
@@ -22,7 +22,7 @@ Input: $ARGUMENTS
 
 ### Resolve PRD and plan
 
-Same resolution as `/review`:
+Same resolution as `/launchpad:review`:
 - `$ARGUMENTS` → `~/.claude/discoveries/$ARGUMENTS/`
 - Inside a repo → infer from `$REPO_NAME`
 - Multiple → list and ask
@@ -63,7 +63,7 @@ If either fails: **stop**. Show the full output. Never create a PR with a broken
 ## Phase 2 — Simplify
 
 Run a code simplification pass on all changed files. This is where code quality
-lives — not in `/review`.
+lives — not in `/launchpad:review`.
 
 ```
 Agent(
@@ -321,7 +321,7 @@ fi
 - Worktree: <removed | not applicable>
 - Discovery: archived to ~/.claude/discoveries/<repo>/archived/<feature>/
 
-Cycle closed. Next: /discovery for the next feature.
+Cycle closed. Next: /launchpad:discovery for the next feature.
 ```
 
 ---
@@ -342,7 +342,7 @@ Cycle closed. Next: /discovery for the next feature.
 
 ## When NOT to use
 
-- Before `/review` approves — validate first
-- No code to merge — run `/delivery` first
-- For alignment validation → use `/review`
+- Before `/launchpad:review` approves — validate first
+- No code to merge — run `/launchpad:delivery` first
+- For alignment validation → use `/launchpad:review`
 - For code without a branch → commit first

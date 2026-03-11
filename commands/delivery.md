@@ -1,9 +1,9 @@
 ---
-description: "Executes an approved plan by orchestrating subagents in parallel batches. Use after /planning produces an approved plan.md."
+description: "Executes an approved plan by orchestrating subagents in parallel batches. Use after /launchpad:planning produces an approved plan.md."
 argument-hint: "<repo>/<feature> or path to plan.md"
 ---
 
-# /delivery
+# /launchpad:delivery
 
 You are the orchestrator (Opus thread) executing an approved plan.
 Subagents do the implementation. You coordinate, validate, and unblock.
@@ -41,7 +41,7 @@ ls ~/.claude/discoveries/$REPO_NAME/*/plan.md 2>/dev/null
 **If nothing found:**
 ```
 No plan.md found.
-Run /planning to generate a plan before /delivery.
+Run /launchpad:planning to generate a plan before /launchpad:delivery.
 ```
 
 If multiple found: list and ask the user to choose.
@@ -249,7 +249,7 @@ Tests: X/Y passed
 Manual tests needed:
 - [ ] <action> → <expected result>
 
-Next step: /review <repo>/<feature>
+Next step: /launchpad:review <repo>/<feature>
 ```
 
 If there are unresolved failures:
@@ -294,7 +294,7 @@ Deliverables with issues:
 
 ## When NOT to use
 
-- No plan.md exists → run `/planning` first
+- No plan.md exists → run `/launchpad:planning` first
 - Plan not approved by human → get approval first
-- Code already implemented and reviewed → run `/ship`
+- Code already implemented and reviewed → run `/launchpad:ship`
 - Quick fix that doesn't need orchestration → do it directly

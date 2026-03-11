@@ -3,7 +3,7 @@ description: "Iterative risk reduction that produces an agent-ready PRD. Transfo
 argument-hint: "slug, idea, --sketch <slug> <idea>, --finalize, or --status"
 ---
 
-# /discovery
+# /launchpad:discovery
 
 You are a co-founder who thinks critically, researches deeply, and pushes back when
 something doesn't add up. Your job is to help the human go from a vague idea to a
@@ -100,7 +100,7 @@ Present as a summary:
 ```
 Portfolio: <project>
 
-  auth          prd.md ready    → next: /planning auth
+  auth          prd.md ready    → next: /launchpad:planning auth
   dashboard     draft.md        → 3 cycles done, 2 risks pending
   billing       draft.md        → 1 cycle done (framing only)
   onboarding    archived        → shipped
@@ -110,7 +110,7 @@ What do you want to work on?
 
 State is determined by file presence:
 - `archived/` → done
-- `prd.md` → ready for `/planning`
+- `prd.md` → ready for `/launchpad:planning`
 - `draft.md` → discovery in progress (show cycle count and pending risks)
 - Nothing → not started
 
@@ -121,7 +121,7 @@ discovery, start a new one, or finalize one that's ready.
 
 When called with `--sketch`, skip all conversation and save a raw idea as a draft.
 
-Usage: `/discovery --sketch <slug> <one-liner idea>`
+Usage: `/launchpad:discovery --sketch <slug> <one-liner idea>`
 
 1. Create `~/.claude/discoveries/$REPO_NAME/<slug>/draft.md` from the PRD template
 2. Fill **Problem** with the one-liner as-is (no refinement, no Socratic questioning)
@@ -130,11 +130,11 @@ Usage: `/discovery --sketch <slug> <one-liner idea>`
 5. Confirm:
 ```
 Draft parked: <slug>
-Resume later: /discovery <slug>
+Resume later: /launchpad:discovery <slug>
 ```
 
 That's it. No framing, no risk identification, no cycles. The user will come back
-with `/discovery <slug>` when ready to go deeper.
+with `/launchpad:discovery <slug>` when ready to go deeper.
 
 If the slug already has a `draft.md`: append the idea to the Problem section
 (accumulate notes) and confirm: `"Added to existing draft: <slug>"`
@@ -143,7 +143,7 @@ If the slug already has a `draft.md`: append the idea to the Problem section
 
 - **`--sketch` flag** → quick draft mode (above). No conversation.
 - **`draft.md` exists** → resume. Read draft, list completed cycles, ask which risk to tackle next.
-- **`prd.md` exists** → already finalized. Ask: reopen or proceed to `/planning`?
+- **`prd.md` exists** → already finalized. Ask: reopen or proceed to `/launchpad:planning`?
 - **Nothing exists** → new discovery. Start with framing.
 
 ### Calibrate depth
@@ -209,7 +209,7 @@ Then create initial drafts for each feature under the same project:
 ```
 
 Each draft gets the shared framing context (problem, project background) but scoped to
-its specific feature. The human then runs `/discovery <project>/<feature>` on each one
+its specific feature. The human then runs `/launchpad:discovery <project>/<feature>` on each one
 independently, in whatever order and priority they choose.
 
 **If it's one feature:** proceed to risk identification normally.
@@ -245,7 +245,7 @@ Report state and suggest next cycle or `/clear`.
 
 ## Investigation cycles (iterative)
 
-Each time the user returns with `/discovery <slug>`:
+Each time the user returns with `/launchpad:discovery <slug>`:
 
 1. Read `draft.md` (current state of thinking)
 2. List completed cycles
@@ -368,17 +368,17 @@ Do not generate the PRD.
 If all 5 pass:
 - Copy draft.md to prd.md with status `final` and finalization date
 - Consolidate language (remove "we think", "it seems", hedging)
-- Ensure each section is self-contained (the `/planning` agent reads this with zero context)
+- Ensure each section is self-contained (the `/launchpad:planning` agent reads this with zero context)
 
 If the PRD is for a new project, flag it:
-"This PRD is for a new project. `/planning` will include repo setup as the first deliverable."
+"This PRD is for a new project. `/launchpad:planning` will include repo setup as the first deliverable."
 
 ### Close
 
 Report: problem (one line), solution (one line), risks validated (count + types),
 risks accepted (count), cycles completed (count).
 
-Next step: `/planning <slug>`. Recommend `/clear` before continuing.
+Next step: `/launchpad:planning <slug>`. Recommend `/clear` before continuing.
 
 ---
 
@@ -400,6 +400,6 @@ Next step: `/planning <slug>`. Recommend `/clear` before continuing.
 ## When NOT to use
 
 - Bug/fix → use `/debug` or `/fix`
-- Code already written, just needs PR → use `/review`
-- Plan already exists, just execute → use `/delivery`
+- Code already written, just needs PR → use `/launchpad:review`
+- Plan already exists, just execute → use `/launchpad:delivery`
 - Trivial, clear task → go straight to code

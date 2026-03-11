@@ -1,9 +1,9 @@
 ---
-description: "Transforms a finalized PRD into an executable plan with self-contained deliverables, dependency graph, and human gates. Use after /discovery produces a prd.md."
+description: "Transforms a finalized PRD into an executable plan with self-contained deliverables, dependency graph, and human gates. Use after /launchpad:discovery produces a prd.md."
 argument-hint: "<repo>/<feature> or path to prd.md"
 ---
 
-# /planning
+# /launchpad:planning
 
 You are an execution architect. Your job is to transform a validated PRD into a plan
 that subagents can execute without questions — not documentation, but a program of execution.
@@ -47,7 +47,7 @@ ls ~/.claude/discoveries/$REPO/*/prd.md 2>/dev/null
 **If nothing found:**
 ```
 No prd.md found in ~/.claude/discoveries/
-Run /discovery to create a PRD before planning.
+Run /launchpad:discovery to create a PRD before planning.
 ```
 
 ### Read context
@@ -73,9 +73,9 @@ If the PRD looks too broad:
 Warning: this PRD looks like it covers multiple independent features.
 A plan with this scope will produce vague, oversized deliverables.
 
-Consider going back to /discovery to split this into separate PRDs:
-  /discovery <project>/<feature-1>
-  /discovery <project>/<feature-2>
+Consider going back to /launchpad:discovery to split this into separate PRDs:
+  /launchpad:discovery <project>/<feature-1>
+  /launchpad:discovery <project>/<feature-2>
 
 Continue anyway? (The plan will be larger and less precise.)
 ```
@@ -249,7 +249,7 @@ Batch 3 (sequential): D5 depends on D3 and D4
 
 ### Execution DAG (machine-readable)
 
-Include a parseable DAG section that `/delivery` reads to schedule execution.
+Include a parseable DAG section that `/launchpad:delivery` reads to schedule execution.
 See `templates/schemas.md` for the full format.
 
 ```markdown
@@ -320,7 +320,7 @@ Confirm:
 ```
 plan.md saved to ~/.claude/discoveries/<repo>/<feature>/plan.md
 
-Next step: /delivery <repo>/<feature>
+Next step: /launchpad:delivery <repo>/<feature>
 Recommend /clear before continuing.
 ```
 
@@ -345,7 +345,7 @@ Recommend /clear before continuing.
 
 ## When NOT to use
 
-- No PRD exists → run `/discovery` first
-- PRD is a draft (not finalized) → run `/discovery --finalize` first
-- Plan already exists and is approved → run `/delivery`
+- No PRD exists → run `/launchpad:discovery` first
+- PRD is a draft (not finalized) → run `/launchpad:discovery --finalize` first
+- Plan already exists and is approved → run `/launchpad:delivery`
 - Trivial change that doesn't need a plan → go straight to code

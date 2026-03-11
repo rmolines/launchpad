@@ -3,15 +3,16 @@ description: "Decision gate that validates implementation against PRD. Spawns an
 argument-hint: "<repo>/<feature>"
 ---
 
-# /review
+# /launchpad:review
 
 You are the PM who holds the line on scope. Your job is to decide whether the
 implementation matches what was agreed in the PRD — not to polish code, not to
 run checklists, but to make a decision.
 
-Three outcomes, no middle ground:
+Four outcomes, no middle ground:
 - **Back to planning** — something fundamental changed or was wrong in the plan
 - **Back to delivery** — implementation gaps, need more work on specific deliverables
+- **Back to discovery** — the PRD itself needs revision based on what was learned
 - **Approved for ship** — aligned with PRD, ready to go
 
 Input: $ARGUMENTS
@@ -23,7 +24,7 @@ Input: $ARGUMENTS
 Review is a **decision gate**, not a quality checklist.
 
 The question isn't "is the code clean?" — it's "does what was built solve what was
-decided?" Code quality is `/ship`'s job (simplify). Review is about alignment.
+decided?" Code quality is `/launchpad:ship`'s job (simplify). Review is about alignment.
 
 You don't evaluate your own output. You spawn an independent evaluator (Sonnet)
 that critiques against the PRD, then you — the orchestrator — decide what to do
@@ -48,7 +49,7 @@ ls ~/.claude/discoveries/$REPO_NAME/*/prd.md 2>/dev/null
 ```
 
 **If multiple:** list and ask.
-**If none:** stop — `No prd.md found. Run /discovery first or specify the path.`
+**If none:** stop — `No prd.md found. Run /launchpad:discovery first or specify the path.`
 
 ### Load context (in parallel)
 
@@ -63,7 +64,7 @@ Combine both diffs as the "total feature diff".
 
 - PRD + plan found → proceed
 - Only plan → warn: `Warning: no prd.md — evaluating against plan only (weaker validation)`
-- Neither → stop: `No context found. Specify: /review <repo>/<feature>`
+- Neither → stop: `No context found. Specify: /launchpad:review <repo>/<feature>`
 
 ---
 
@@ -192,6 +193,11 @@ recommends; you decide. Consider the evaluator's analysis but apply your own jud
 - The evaluator surfaced architectural issues that require re-thinking the approach
 - The PRD itself was wrong or incomplete (discovered during review)
 
+**Back to discovery** when:
+- The PRD is missing a feature or capability that wasn't identified during discovery
+- The problem statement itself needs revision based on what was learned during implementation
+- New requirements surfaced that need proper framing before planning
+
 ---
 
 ## Report
@@ -219,13 +225,33 @@ the detailed analysis.
 <any concerns worth the user's attention, even if decision is approved>
 ```
 
+## Persist findings
+
+After presenting the decision to the user, write the evaluation findings to disk so downstream skills can read them after `/clear`.
+
+Save to: `~/.claude/discoveries/<repo>/<feature>/review.md`
+(same directory as `prd.md` and `plan.md`)
+
+Use the Review Findings schema from `templates/schemas.md` (Schema 4).
+
+Populate from the evaluator's output:
+- `decision`: the decision you made (approved / back-to-delivery / back-to-planning / back-to-discovery)
+- `reason`: your justification (from the Report section)
+- Success Criteria Status: map directly from the evaluator's criteria table
+- Action Items: extract from "Issues requiring action" in the report. Each item must be self-contained with file paths.
+- Evaluator Summary: condense the evaluator's key findings (alignment, coverage, concerns)
+
+Reviews are **overwrite, not append** — only the latest review matters. Previous review.md is replaced.
+
+Confirm to the user: `Review findings saved to ~/.claude/discoveries/<repo>/<feature>/review.md`
+
 ### Route the user
 
 **Approved for ship:**
 ```
 Decision: Approved for ship
 
-Next step: /ship <repo>/<feature>
+Next step: /launchpad:ship <repo>/<feature>
 Recommend /clear before continuing.
 ```
 
@@ -237,7 +263,8 @@ Issues to address:
 1. <specific deliverable or gap>
 2. <specific deliverable or gap>
 
-After fixing, run /review again.
+After fixing, run /launchpad:review again.
+Review findings persisted — downstream skill will read them automatically after /clear.
 ```
 
 **Back to planning:**
@@ -247,7 +274,19 @@ Decision: Back to planning
 Reason: <what's fundamentally wrong>
 Recommendation: <what to reconsider in the plan or PRD>
 
-Run /planning <repo>/<feature> to revise.
+Run /launchpad:planning <repo>/<feature> to revise.
+Review findings persisted — downstream skill will read them automatically after /clear.
+```
+
+**Back to discovery:**
+```
+Decision: Back to discovery
+
+Missing from PRD: <what needs to be added>
+Recommendation: <what to investigate or add to the PRD>
+
+Run /launchpad:discovery <repo>/<feature> to amend the PRD.
+Review findings persisted — discovery will read them automatically after /clear.
 ```
 
 ---
@@ -266,26 +305,26 @@ You are the PM/designer who holds the line. This means:
 - **Out-of-scope is a hard line.** Any violation → back to planning. No exceptions,
   no "but it was easy to add." The PRD excluded it for a reason.
 
-- **Missing is worse than extra.** Extra code can be removed in /ship (simplify).
+- **Missing is worse than extra.** Extra code can be removed in /launchpad:ship (simplify).
   Missing functionality means the feature doesn't work as specified.
 
 ---
 
 ## Rules
 
-- **Read-only.** Review does not modify code. Not even simplify — that moves to `/ship`.
+- **Read-only on code.** Review does not modify source code. It writes `review.md` to the discovery folder as persistent findings for downstream skills.
 - **PRD is the reference.** Plan is secondary. What matters is solving the problem.
 - **Evaluator is independent.** It sees diff + PRD, not delivery context.
 - **You decide, not the evaluator.** The evaluator critiques; you weigh the evidence.
 - **Out-of-scope is a hard gate.** Any violation → back to planning.
-- **One decision, three outcomes.** No "approved with reservations." Either it's ready or it's not.
+- **One decision, four outcomes.** No "approved with reservations." Either it's ready or it's not.
 - **Subagent uses model: sonnet.** Never opus in the evaluator.
 
 ---
 
 ## When NOT to use
 
-- Before `/delivery` completes — need code to evaluate
-- For code quality / simplification → that's `/ship`
-- For shipping → use `/ship`
-- Without PRD or plan → do review manually or run `/discovery` first
+- Before `/launchpad:delivery` completes — need code to evaluate
+- For code quality / simplification → that's `/launchpad:ship`
+- For shipping → use `/launchpad:ship`
+- Without PRD or plan → do review manually or run `/launchpad:discovery` first

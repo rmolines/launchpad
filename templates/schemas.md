@@ -241,3 +241,46 @@ Result: PASS (all 5) | FAIL (list failing items)
 ```
 
 If result is FAIL, `/discovery --finalize` outputs which items failed with the specific gaps found, and prompts the human to resolve them before retrying.
+
+---
+
+## Schema 4: Review Findings (review.md)
+
+`/review` writes this file after every evaluation. Downstream skills (`/discovery`, `/planning`, `/delivery`) read it on entry to detect amendment mode.
+
+### Format
+
+```markdown
+# Review Findings
+_Feature: <repo>/<feature>_
+_Date: <date>_
+_Diff analyzed: <git ref range>_
+
+## Decision
+decision: approved | back-to-delivery | back-to-planning | back-to-discovery
+reason: <1-2 sentence justification>
+
+## Success Criteria Status
+| Criterion | Status | Note |
+|-----------|--------|------|
+| <criterion text> | PASS / PARTIAL / FAIL | <evidence or gap> |
+
+## Action Items
+Items that the next phase must address. Each item is self-contained — the receiving skill should be able to act on it without session context.
+- <specific, actionable item with file paths where relevant>
+
+## Evaluator Summary
+<Key findings from the evaluator subagent — condensed for downstream consumption>
+```
+
+### Field rules
+| Field | Rules |
+|---|---|
+| `decision` | One of: `approved`, `back-to-delivery`, `back-to-planning`, `back-to-discovery` |
+| `reason` | Must explain *why* this decision, not just restate the criteria status |
+| Action Items | Each item must be actionable without session context. Include file paths. |
+
+### Parsing
+```bash
+DECISION=$(grep "^decision:" review.md | awk '{print $2}')
+```
