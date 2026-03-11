@@ -1,6 +1,6 @@
 # The Thesis
 
-The thinking behind feature-lifecycle — why it exists, what it believes,
+The thinking behind launchpad — why it exists, what it believes,
 and the insights that shaped its design.
 
 This is the source of truth for the project's intellectual foundation.
@@ -48,7 +48,7 @@ In the new model, process = **attention protocol for one person**. The question 
 "how do we align the team?" but "where should I look right now, and what decision does
 this moment require?"
 
-Every command in feature-lifecycle is designed around this: focus the human on the gate
+Every command in launchpad is designed around this: focus the human on the gate
 that matters, delegate everything else to agents.
 
 ### The squad, compressed
@@ -125,7 +125,7 @@ edge case."
 
 Agents don't push back. They execute.
 
-The feature-lifecycle process creates **artificial friction points** where a squad would
+The launchpad process creates **artificial friction points** where a squad would
 have had natural ones:
 
 - `/discovery` pushes back against vague assumptions (the co-founder who questions)
@@ -290,7 +290,7 @@ layer — the plan is the new branch strategy.
 
 ## Historical context: where this sits in the discourse
 
-feature-lifecycle didn't emerge in a vacuum. The field moved through a clear arc in 2025:
+launchpad didn't emerge in a vacuum. The field moved through a clear arc in 2025:
 
 **Vibe Coding (Feb 2025)** → Karpathy coined it. Accept all diffs, copy errors back. Works
 for throwaway weekend projects. Became a meme and a movement.
@@ -302,7 +302,7 @@ loop" problem: each iteration overrides earlier decisions.
 **Spec-Driven Development (late 2025)** → GitHub Spec Kit, Google Conductor, Amazon Kiro.
 Structured artifacts on disk as source of truth. Karpathy evolved to "agentic engineering."
 
-**feature-lifecycle sits at the frontier of Phase 3** — but goes further than existing SDD tools
+**launchpad sits at the frontier of Phase 3** — but goes further than existing SDD tools
 by treating the *entire lifecycle* as a gate-based process, not just the spec → code transition.
 The insight that nobody else has articulated cleanly: **process is an attention protocol, not a
 communication protocol.** SDD tools solve "how to write specs for agents." We solve "how to
@@ -327,7 +327,7 @@ Notable HN argument: autonomous AI agents force regression from Agile to Waterfa
 unreviewed vibe code (fragile) or reviewed-after-the-fact code (Waterfall's original failure).
 The claim: sync pair-programming with AI is structurally faster than async agents.
 
-Our response: feature-lifecycle is neither Agile nor Waterfall. It's a **gate-based flow**
+Our response: launchpad is neither Agile nor Waterfall. It's a **gate-based flow**
 where the human reviews at phase transitions, not at every line. The gates are designed to
 catch exactly the problems that both Agile (too little structure) and Waterfall (too late
 feedback) fail at.
@@ -412,6 +412,6 @@ Things we believe but haven't fully validated yet:
    stretch?
 
 5. **Multi-project portfolio view.**
-   feature-lifecycle manages features within projects. But the solo founder's real problem is
+   launchpad manages features within projects. But the solo founder's real problem is
    managing *across* projects. The one-man-squad-os pivot plan explores this with the "portfolio
    of bets" model. How do these two systems connect?

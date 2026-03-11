@@ -1,7 +1,7 @@
 # Project Spec
 
 ## Identity
-name: feature-lifecycle
+name: launchpad
 alias: fl
 description: Plugin de Claude Code para ciclo completo de desenvolvimento de features
 

@@ -1,7 +1,7 @@
 # Skill Contracts
 
 Reference document defining the input/output contracts, value proposition, and design intent
-for each skill in the feature-lifecycle plugin.
+for each skill in the launchpad plugin.
 
 ---
 

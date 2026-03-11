@@ -1,6 +1,6 @@
 # Schemas
 
-Three machine-readable formats used across the feature-lifecycle plugin skills.
+Three machine-readable formats used across the launchpad plugin skills.
 
 ---
 

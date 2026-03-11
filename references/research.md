@@ -1,6 +1,6 @@
 # Research — March 2025
 
-Deep research conducted across three domains to inform the design of feature-lifecycle.
+Deep research conducted across three domains to inform the design of launchpad.
 This document is a source for articles, design decisions, and thesis refinement.
 
 ---
@@ -215,7 +215,7 @@ unreviewed vibe code (fragile) or reviewed-after-the-fact code (Waterfall's orig
 The argument is that **sync pair-programming with AI is structurally faster** than async agents.
 
 This actually supports our thesis: the answer isn't to reject structure, it's to design the
-right gates. feature-lifecycle is neither Agile nor Waterfall — it's a gate-based flow where
+right gates. launchpad is neither Agile nor Waterfall — it's a gate-based flow where
 the human reviews at phase transitions, not at every line.
 
 ### Common failure modes reported
@@ -226,4 +226,4 @@ the human reviews at phase transitions, not at every line.
 4. Token waste / cost blowout
 5. Attention fragmentation (multiple agents, no review cadence)
 
-All five are directly addressed by feature-lifecycle's design.
+All five are directly addressed by launchpad's design.

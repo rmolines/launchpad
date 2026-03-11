@@ -1,4 +1,4 @@
-# feature-lifecycle
+# launchpad
 
 **One developer. A squad of agents. Zero tickets.**
 
@@ -6,7 +6,7 @@ Claude Code collapsed an entire engineering squad into one person. A solo founde
 
 Linear, Jira, GitHub Projects, sprints, boards — all of it was built as **coordination protocols between humans**. Assignees, story points, standups: infrastructure for multiple people not stepping on each other. The solo builder with agents doesn't have that problem. Their problem is different: **where to put attention right now.**
 
-feature-lifecycle is project management redesigned from scratch for the human + agents world. Artifacts on disk replace tickets. Gates replace meetings. The PRD is an execution contract, not a political alignment document. And five commands take a vague idea to production.
+launchpad is project management redesigned from scratch for the human + agents world. Artifacts on disk replace tickets. Gates replace meetings. The PRD is an execution contract, not a political alignment document. And five commands take a vague idea to production.
 
 ## The problem
 
@@ -23,7 +23,7 @@ The bottleneck isn't build capacity. **The bottleneck is human attention and jud
 
 ### Process as an attention protocol
 
-In the old model, process = communication protocol between humans. In the new model, process = **attention protocol for one person**. Each feature-lifecycle command focuses the human on the gate that matters and delegates the rest to agents.
+In the old model, process = communication protocol between humans. In the new model, process = **attention protocol for one person**. Each launchpad command focuses the human on the gate that matters and delegates the rest to agents.
 
 ### The PRD is where humans add the most leverage
 
@@ -221,7 +221,7 @@ Add to `~/.claude/settings.json`:
   "projects": {
     "/path/to/any/repo": {
       "plugins": [
-        "/path/to/feature-lifecycle"
+        "/path/to/launchpad"
       ]
     }
   }
