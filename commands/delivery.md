@@ -69,6 +69,43 @@ depend on what (subsequent batches), where gates are defined.
 If the plan lacks an Execution DAG section:
 `Warning: plan has no Execution DAG — deriving execution order from deliverable descriptions`
 
+### Check for review.md (amendment mode)
+
+```bash
+ls ~/.claude/discoveries/$FEATURE_PATH/review.md 2>/dev/null
+```
+
+If `review.md` exists AND `decision: back-to-delivery`:
+
+**Amendment mode activated.** Read the review findings and adapt execution:
+
+1. Read the Action Items from review.md — these define what needs to be re-done
+2. Read the Success Criteria Status — identify which criteria are FAIL or PARTIAL
+3. Map action items back to deliverables in plan.md
+4. Build a **reduced DAG** containing only:
+   - Deliverables that map to failed action items
+   - Deliverables that depend on those (transitively)
+5. Skip all deliverables already marked as passing
+
+Report to the user:
+```
+Amendment mode — review.md found (back-to-delivery)
+
+Action items from review:
+- <item 1>
+- <item 2>
+
+Deliverables to re-execute: D2, D4
+Skipping (already passing): D1, D3
+
+Proceed?
+```
+
+Wait for confirmation before executing.
+
+If `review.md` exists but `decision` is NOT `back-to-delivery`: ignore it — wrong routing.
+If no `review.md`: proceed normally (existing behavior, no changes).
+
 ### Validate before starting
 
 Check for:
@@ -101,6 +138,18 @@ broken codebase unless the plan explicitly addresses it.
 ## Execution
 
 ### Launch by batch
+
+> **Amendment mode:** if active, only launch deliverables in the reduced DAG.
+> The enriched prompt for each re-executed deliverable must include the review's action items
+> relevant to that deliverable in the `[EXECUTION CONTEXT]` block:
+> ```
+> [REVIEW FINDINGS — amendment mode]
+> This deliverable is being re-executed because the previous attempt had issues.
+> Action items from review:
+> - <relevant action items for this deliverable>
+> Previous issues:
+> - <relevant criteria that were FAIL/PARTIAL>
+> ```
 
 For each batch of parallel deliverables:
 
@@ -259,6 +308,30 @@ Deliverables with issues:
   Root cause: <diagnosis>
   Suggested next step: <action>
 ```
+
+If amendment mode was active, the final report should note:
+```
+## Delivery complete (amendment) — <feature name>
+
+Re-executed deliverables:
+- D2 — <title>: success
+- D4 — <title>: success
+
+Skipped (from previous delivery):
+- D1 — <title>: previously passing
+- D3 — <title>: previously passing
+
+Build: passed
+Tests: X/Y passed
+
+Next step: /review <repo>/<feature>
+```
+
+After successful amendment delivery, **delete review.md** to clear the amendment flag:
+```bash
+rm ~/.claude/discoveries/$FEATURE_PATH/review.md
+```
+This prevents the next `/review` from seeing stale findings.
 
 ---
 

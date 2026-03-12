@@ -143,6 +143,30 @@ If the slug already has a `draft.md`: append the idea to the Problem section
 
 - **`--sketch` flag** → quick draft mode (above). No conversation.
 - **`draft.md` exists** → resume. Read draft, list completed cycles, ask which risk to tackle next.
+- **`review.md` exists with `decision: back-to-discovery`** → amendment mode. Read `review.md`
+  and the existing `prd.md`. Present the review findings to the user:
+  ```
+  Amendment mode — review found issues requiring PRD changes:
+
+  Review decision: back-to-discovery
+  Reason: <reason from review.md>
+
+  Action items:
+  - <items from review.md>
+
+  Current PRD: <feature>/prd.md
+  ```
+
+  Then operate as a **focused amendment session**:
+  - Do NOT re-frame the problem or re-run risk identification
+  - Focus only on incorporating the review's action items into the PRD
+  - Use light framing: validate the proposed changes with the user, don't extract from scratch
+  - When changes are agreed, update `prd.md` directly (it was already finalized once)
+  - Run the Quality Gate on the updated PRD before saving
+  - After saving: delete `review.md` to clear the amendment flag
+
+  Suggest next step: `/launchpad:planning <feature>` (which will also operate in amendment mode
+  if its own review.md routing applies, or in normal mode on the updated PRD).
 - **`prd.md` exists** → already finalized. Ask: reopen or proceed to `/launchpad:planning`?
 - **Nothing exists** → new discovery. Start with framing.
 

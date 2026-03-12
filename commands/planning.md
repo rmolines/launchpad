@@ -57,6 +57,45 @@ Run /launchpad:discovery to create a PRD before planning.
    test command, hot files, stack, branch conventions
 3. If none found: `Warning: no project config — using only the PRD as context`
 
+### Check for review.md (amendment mode)
+
+```bash
+ls ~/.claude/discoveries/$FEATURE_PATH/review.md 2>/dev/null
+```
+
+If `review.md` exists AND `decision: back-to-planning`:
+
+**Amendment mode activated.** This is a re-planning, not a fresh plan.
+
+1. Read review.md — focus on Action Items and failed criteria
+2. Read the existing `plan.md` — understand what was already delivered
+3. Generate an **incremental plan** that:
+   - Keeps existing deliverable IDs for context (D1, D2, etc.)
+   - Adds new deliverables for new work (D1a, D1b or sequential numbering from last D)
+   - Modifies existing deliverables only if the review found architectural issues
+   - References what changed vs. the original plan
+
+Report to the user:
+```
+Amendment mode — review.md found (back-to-planning)
+
+Previous plan had N deliverables. Review found:
+- <action item 1>
+- <action item 2>
+
+Generating incremental plan (delta only).
+```
+
+The incremental plan follows the same format (deliverables, DAG, batches) but:
+- Problem section references the original + what the review surfaced
+- Only new/modified deliverables have full subagent prompts
+- Existing passing deliverables are listed as "previously delivered" (no prompt)
+
+Save as `plan.md` (overwrites the previous plan — the original is in git history).
+
+If `review.md` exists but `decision` is NOT `back-to-planning`: ignore it.
+If no `review.md`: proceed normally (existing behavior).
+
 ### Check PRD scope
 
 After reading the PRD, assess whether it's scoped to a single feature or describes
