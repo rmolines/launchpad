@@ -1,5 +1,11 @@
 # Changelog
 
+## ecosystem-map — 2026-03-12
+**Type:** feat
+**PRD:** ~/.claude/discoveries/fl/ecosystem-map/prd.md
+**Artifact:** ~/.claude/rules/ecosystem-map.md
+**Note:** Rules file (auto-loaded in every conversation). No repo code changes — file lives outside git.
+
 ## domain-map — 2026-03-12
 **Type:** feat
 **PRD:** ~/.claude/discoveries/fl/domain-map/prd.md
