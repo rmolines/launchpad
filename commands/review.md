@@ -86,6 +86,8 @@ Agent(
 
 > You are a product reviewer. Your job is to evaluate whether an implementation
 > matches what was specified in a PRD. You are read-only — do not modify any files.
+> Do NOT use any tools — all context is provided below. Analyze the PRD, plan,
+> and diff inline and return your evaluation directly.
 >
 > **PRD:**
 > <full prd.md content>
@@ -213,7 +215,8 @@ the detailed analysis.
 ### Summary
 <2-3 sentences: what was evaluated, what the evaluator found, why this decision>
 
-### Success criteria: N/M passing
+### Success criteria: N/M passing (P PARTIAL, U UNTESTABLE)
+Count only PASS as "passing". Show PARTIAL and UNTESTABLE counts in parentheses.
 <only list items that are not PASS — the user doesn't need to see what's working>
 
 ### Issues requiring action
@@ -232,14 +235,31 @@ After presenting the decision to the user, write the evaluation findings to disk
 Save to: `~/.claude/discoveries/<repo>/<feature>/review.md`
 (same directory as `prd.md` and `plan.md`)
 
-Use the Review Findings schema from `templates/schemas.md` (Schema 4).
+**Use this exact format** (Schema 4 — downstream skills parse it with `grep "^decision:"`):
 
-Populate from the evaluator's output:
-- `decision`: the decision you made (approved / back-to-delivery / back-to-planning / back-to-discovery)
-- `reason`: your justification (from the Report section)
-- Success Criteria Status: map directly from the evaluator's criteria table
-- Action Items: extract from "Issues requiring action" in the report. Each item must be self-contained with file paths.
-- Evaluator Summary: condense the evaluator's key findings (alignment, coverage, concerns)
+```markdown
+# Review Findings
+_Feature: <repo>/<feature>_
+_Date: <YYYY-MM-DD>_
+_Diff analyzed: <git ref range, e.g. origin/main...HEAD>_
+
+## Decision
+decision: <approved | back-to-delivery | back-to-planning | back-to-discovery>
+reason: <1-2 sentence justification>
+
+## Success Criteria Status
+| Criterion | Status | Note |
+|-----------|--------|------|
+| <criterion text> | PASS / PARTIAL / FAIL / UNTESTABLE | <evidence or gap> |
+
+## Action Items
+- <specific, actionable item with file paths where relevant>
+
+## Evaluator Summary
+<Key findings: alignment, coverage, concerns — condensed for downstream consumption>
+```
+
+**Critical:** the `decision:` and `reason:` lines must be plain key-value (no bold, no markdown formatting). Downstream parsing depends on `grep "^decision:"`.
 
 Reviews are **overwrite, not append** — only the latest review matters. Previous review.md is replaced.
 
