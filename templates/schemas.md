@@ -447,6 +447,7 @@ tags: []
 | `status` | `draft` (in progress), `validated` (finalized), `active` (milestones being executed), `paused`, `archived` |
 | Milestone `Entry` | Must be a valid `/launchpad:discovery` command that the human can copy-paste |
 | Milestone `Depends on` | References other milestone IDs (M1, M2...) or empty for no dependencies |
+| Milestone `Blockers` | Checklist of risks/spikes that must be resolved in `/discovery` before the milestone can proceed. These become the first investigation cycles in discovery. |
 | Kill condition | Must be falsifiable — something that could actually be true |
 
 ### Milestone status (computed, not stored)
