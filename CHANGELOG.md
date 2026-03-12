@@ -1,5 +1,11 @@
 # Changelog
 
+## cockpit — 2026-03-12
+**Type:** feat
+**PRD:** ~/.claude/discoveries/fl/cockpit/prd.md
+**Commit:** `git show 7bcc630`
+**Decisions:** see LEARNINGS.md#cockpit
+
 ## ecosystem-map — 2026-03-12
 **Type:** feat
 **PRD:** ~/.claude/discoveries/fl/ecosystem-map/prd.md

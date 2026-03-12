@@ -55,3 +55,28 @@
 - ~/.claude/schema.yml (results + reviews tables)
 - ~/.claude/templates/domain-map.html
 - ~/.claude/scripts/domain-map.sh
+
+## cockpit — 2026-03-12
+
+**What:** 5 HTMLs temáticos (schema-explorer, domain-map, bowl, plan-view, cockpit.md) existiam isolados sem navegação entre si e sem ponto central de acesso. O usuário criava artefatos que depois não conseguia encontrar ou usar. Esta feature unifica tudo em um único `cockpit.html` com 5 abas funcionais, populado por um `cockpit.sh` que escaneia `~/.claude/discoveries/` via grep/awk sem dependência de LLM.
+
+**Key decisions:**
+- Mesmo padrão de `plan-view.sh`: bash escaneia filesystem → monta JSON → injeta via Python `str.replace('__COCKPIT_DATA__', json_data)` → abre no browser.
+- Design system unificado baseado em schema-explorer + domain-map (dark indigo, Fira Code, `#0f1117` bg) — bowl e plan-view precisam ser migrados de seus temas originais (zinc e light) para esse sistema.
+- `project:` do YAML frontmatter é fonte de verdade para agrupamento, não o path do diretório — alguns bets têm `project: launchpad` mas vivem em `fl/`.
+- Fase derivada de artefatos presentes no filesystem (mesma lógica do domain-map), não de campo manual.
+- Execução em 3 deliverables: D1 (script) e D2 (template) em paralelo, D3 (wiring + validação) dependente de ambos.
+
+**Pitfalls:**
+- `__COCKPIT_DATA__` não pode aparecer no conteúdo das bets (mesmo pitfall do `__PLAN_DATA__` no plan-view.sh) — o Python substitui todas as ocorrências, corrompendo o JSON.
+
+**Next steps:**
+- Executar D1 + D2 em paralelo, depois D3 para wiring end-to-end.
+- Gate humano após Batch 1: verificar tab bar com 5 abas, Overview com project cards, Pipeline com kanban.
+- Potencial follow-up: integrar o `/cockpit` skill para invocar `cockpit.sh` diretamente do chat.
+
+**Key files:**
+- `~/git/launchpad/scripts/cockpit.sh` (novo — D1)
+- `~/git/launchpad/templates/cockpit.html` (novo — D2)
+- `~/.claude/discoveries/fl/cockpit/prd.md`
+- `~/.claude/discoveries/fl/cockpit/plan.md`
