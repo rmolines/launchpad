@@ -1,5 +1,11 @@
 # Changelog
 
+## initiatives-db — PR #10 — 2026-03-13
+**Type:** feat
+**PRD:** ~/.claude/initiatives/fl/initiatives-db/prd.md
+**Commit:** `git show 5575b97`
+**Decisions:** see LEARNINGS.md#initiatives-db
+
 ## requirements-split — PR #9 — 2026-03-13
 **Type:** improvement
 **PRD:** ~/.claude/discoveries/fl/requirements-split/prd.md

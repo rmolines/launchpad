@@ -167,6 +167,42 @@
 - `~/git/launchpad/scripts/analyze-session.sh`
 - `~/git/launchpad/commands/tokens.md`
 
+## initiatives-db — 2026-03-13
+
+**What:** ~160 markdown documents in `~/.claude/discoveries/` had no schema enforcement and no unified API. Skills wrote directly via Write/Edit with fragile conventions — any ambiguous prompt could silently corrupt data. This initiative ships a Bun/TypeScript MCP server that exposes `~/.claude/initiatives/` as a document database with Zod-validated CRUD tools, lifecycle management, and a `pre_tool_call` hook that blocks direct writes.
+
+**Key decisions:**
+- MCP server over filesystem scripts — tool boundary is the primary enforcement layer; hook is the safety net, not the primary guard.
+- Zod schemas per document type (not per path) — all `draft.md` files share one schema, enabling cross-collection queries.
+- Status derived from filesystem artifacts, not from frontmatter `status:` field — field is cache write-only updated by the API after each operation.
+- `section edit` implemented via string split on `## Heading`, not AST — sufficient for v1 volume, remark/unified deferred.
+- Cycle type enum closed at 6 values (framing, research, analysis, spike, mockup, interview) — additive change if extension needed.
+- QMD coexists as the search layer; Init server triggers `workspace-reindex.sh` after each write.
+- `discoveries/` renamed to `initiatives/` with a backwards-compat symlink during transition.
+- Hook lives in project-level `.claude/settings.json` (not global) until server is proven stable.
+
+**Pitfalls discovered:**
+- `pre_tool_call` hook may not be able to inspect the `file_path` argument — if it only sees the tool name, the fallback is blocking all Write/Edit with a whitelist for paths outside `initiatives/`. Needs investigation during D5 spike.
+- gray-matter parses ~7ms/file; 160 docs ≈ 1.1s startup — acceptable for a per-session MCP process. Lazy loading deferred.
+- Existing cycle files (~10) lack frontmatter — migration script infers `type` and `date` from filename; metadata loss risk is low but accepted.
+
+**Key files:**
+- `~/git/launchpad/src/index.ts` (new — MCP server entry point)
+- `~/git/launchpad/src/schemas.ts` (new — Zod schemas per document type)
+- `~/git/launchpad/src/parser.ts` (new — gray-matter wrapper + filesystem helpers)
+- `~/git/launchpad/src/tools/` (new — read-me, list, create, update, status, lifecycle tools)
+- `~/git/launchpad/.claude-plugin/.mcp.json` (new — MCP server config)
+- `~/git/launchpad/scripts/migrate-initiatives.sh` (new — one-shot rename script)
+- `~/git/launchpad/scripts/guard-initiatives.sh` (new — pre_tool_call hook)
+- `~/git/launchpad/.claude/settings.json` (new — project-level hook registration)
+- `~/.claude/initiatives/` (renamed from `~/.claude/discoveries/`)
+
+**Next steps:**
+- Run Batch 1 in parallel: D1 (MCP skeleton + read-only tools) and D2 (migration script + reference updates).
+- Gate: verify `bun src/index.ts` initializes via stdio without errors; verify `~/.claude/initiatives/fl/` lists initiatives.
+- Run Batch 2 in parallel: D3 (CRUD write tools), D4 (status + lifecycle tools), D5 (hook).
+- After all deliverables: migrate ~6 skills (discovery, planning, delivery, review, ship, draft) from Write/Edit to MCP tool calls — mechanical but manual, tracked as a separate initiative.
+
 ## requirements-as-contract — 2026-03-13
 
 **What:** Promoted Requirements as a first-class PRD section with traceable R<N> IDs, replacing success criteria. Extended traceability across planning (deliverables reference R<N>s), review (evaluator validates each R individually with PASS/PARTIAL/FAIL/UNTESTABLE), and plan-view (requirements panel + per-deliverable badges + header stat counter).
