@@ -116,3 +116,29 @@
 - `~/git/launchpad/templates/cockpit.html` (novo — D2)
 - `~/.claude/discoveries/fl/cockpit/prd.md`
 - `~/.claude/discoveries/fl/cockpit/plan.md`
+
+## cockpit-sync — 2026-03-13
+
+**What:** Unified cockpit data layer that scans repos for `## State` in `project.md`, auto-generates `cockpit.md`, and enriches the HTML dashboard with project cards, progress bars, and grouped pipeline.
+
+**Problem solved:** Portfolio state was fragmented across ~15 repos with incompatible formats. `cockpit.sh` only knew about discoveries — not repos, milestones, or operational state. `cockpit.md` was manual and went stale within days. Audit found: 5 shipped discoveries not archived, wrong milestone counts, entire projects absent, projects with completely wrong state.
+
+**Key decisions:**
+- `## State` section in `.claude/project.md` is the single read interface for the cockpit — each repo maintains its internal format (sprint.md, backlog.json) and exposes only `milestone`, `progress`, `next-feature`, `operational` for the portfolio view. Incremental adoption: repos without `## State` appear as "operational" without details.
+- `cockpit-manual.yaml` handles content requiring human judgment (needs-attention, limbo) — decoupled from the scan logic so human curation is never overwritten by automation.
+- `--refresh` flag produces all three outputs in one run (cockpit.json + cockpit.md + HTML), called from `ship.md` and `delivery.md` lifecycle hooks to keep the cockpit current without manual intervention.
+
+**Pitfalls:**
+- Match between discoveries and repos uses `alias` as primary key, fallback to directory name — mismatch is silent (project appears in cockpit twice or without state). Ensure `alias:` in `project.md` matches the discovery directory name exactly.
+- `import yaml` may not be available; the YAML parser falls back to awk for the flat `cockpit-manual.yaml` structure — keep that file's format simple (no nested objects).
+
+**Key files changed:**
+- `scripts/cockpit.sh` — repo scanning, `## State` parsing, YAML merge, `cockpit.md` generation, `--refresh` flag, expanded `projects[]` JSON schema
+- `templates/cockpit.html` — project cards with progress bars, grouped pipeline by project, "Needs Attention" and "Limbo" sections, Initiative nomenclature throughout
+- `commands/ship.md` — `cockpit.sh --refresh` hook after archive step
+- `commands/delivery.md` — `cockpit.sh --refresh` hook after plan-view step
+
+**Next steps:**
+- Add `## State` to each active repo's `.claude/project.md` to populate milestone/progress data (incremental — only repos that want cockpit detail need it).
+- Add `SessionStart` staleness check: warn if `cockpit.json` is older than 3 days.
+- `portfolio-review` discovery: analysis and prioritization layer on top of the now-reliable cockpit data.

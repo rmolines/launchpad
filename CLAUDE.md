@@ -23,3 +23,30 @@ frontmatter. Reading `status:` directly will return stale or incorrect data.
 - `cockpit.sh` already sources it. Any new script that needs status must do the same.
 - `ship.md` archives by moving the directory to `archived/`; it no longer patches
   `status: archived` into frontmatter. Do not rely on frontmatter to detect archived state.
+
+### `~/git/cockpit.md` is auto-generated — do not edit it directly
+`cockpit.sh --refresh` overwrites `~/git/cockpit.md` entirely via `generate_cockpit_md()`.
+Any manual edits to that file are silently lost on the next refresh.
+
+To add manual content to the cockpit use `~/.claude/cockpit-manual.yaml`:
+- `needs-attention` — list of `{project, action, type, context}` dicts rendered as a table
+- `limbo` — list of project ids excluded from the main listing
+
+### `cockpit-manual.yaml` awk fallback silently drops dict items in `needs-attention`
+When PyYAML is unavailable, `cockpit.sh` falls back to an awk parser that only handles
+flat string list items (`- some text`). The intended `needs-attention` schema uses dicts:
+
+```yaml
+needs-attention:
+  - project: foo
+    action: Do something
+    type: external
+    context: path/to/doc.md
+```
+
+The awk fallback reads only the first line of each dict entry (`project: foo`) and
+discards the remaining keys. The python renderer then calls `item.get('project', '')` on
+a plain string, producing an empty table row. Exit code is 0, no error is printed.
+
+Fix: ensure PyYAML is installed (`pip install pyyaml`) so the primary parser runs.
+Never use flat string items for `needs-attention` — always use the dict schema above.

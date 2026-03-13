@@ -1,5 +1,11 @@
 # Changelog
 
+## cockpit-sync — PR #4 — 2026-03-13
+**Type:** feat
+**PRD:** ~/.claude/discoveries/fl/cockpit-sync/prd.md
+**Commit:** `git show b8d66df`
+**Decisions:** see LEARNINGS.md#cockpit-sync
+
 ## agent-design-system — PR #3 — 2026-03-12
 **Type:** feat
 **PRD:** ~/.claude/discoveries/agent-design-system/prd.md
