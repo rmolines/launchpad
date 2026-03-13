@@ -315,6 +315,11 @@ After writing results.md, generate the visual results view:
 bash ~/git/launchpad/scripts/plan-view.sh ~/.claude/discoveries/<repo>/<feature>/plan.md --results ~/.claude/discoveries/<repo>/<feature>/results.md
 ```
 
+Then refresh the cockpit to reflect delivery progress:
+```bash
+bash ~/git/launchpad/scripts/cockpit.sh --refresh
+```
+
 ---
 
 ## Final report

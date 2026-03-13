@@ -4,11 +4,13 @@
 #   bash scripts/cockpit.sh                          # scan all, open browser
 #   bash scripts/cockpit.sh --project <alias>        # filter by project
 #   bash scripts/cockpit.sh --json-only              # print JSON to stdout
+#   bash scripts/cockpit.sh --refresh                # generate JSON + cockpit.md + HTML
 
 set -euo pipefail
 
 FILTER_PROJECT=""
 JSON_ONLY=0
+REFRESH=0
 DISCOVERIES_DIR="${HOME}/.claude/discoveries"
 
 # ─── Argument parsing ─────────────────────────────────────────────────────────
@@ -23,9 +25,13 @@ while [[ $# -gt 0 ]]; do
       JSON_ONLY=1
       shift
       ;;
+    --refresh)
+      REFRESH=1
+      shift
+      ;;
     *)
       echo "Unknown argument: $1" >&2
-      echo "Usage: $0 [--project <alias>] [--json-only]" >&2
+      echo "Usage: $0 [--project <alias>] [--json-only] [--refresh]" >&2
       exit 1
       ;;
   esac
@@ -346,7 +352,6 @@ for feature_dir in "$DISCOVERIES_DIR"/*/*/; do
     plan_name=$(awk 'NR==1 && /^# Plan:/ { sub(/^# Plan: /, ""); print; exit }' "$feature_dir/plan.md")
     plan_date=$(grep -m1 '_Generated on:' "$feature_dir/plan.md" | sed 's/.*_Generated on: \(.*\)_/\1/' || true)
     [[ -z "$plan_name" ]] && plan_name="$fm_id"
-    [[ -z "$plan_date" ]] && plan_date=""
 
     dag_text=$(parse_dag "$feature_dir/plan.md")
     task_blocks=$(build_tasks_json "$dag_text")
@@ -370,27 +375,259 @@ for feature_dir in "$DISCOVERIES_DIR"/*/*/; do
   fi
 done
 
+# ─── Repo scanning helpers ────────────────────────────────────────────────────
+
+# Read a key-value field from a section of project.md
+# Usage: project_spec_field <file> <section_header> <key>
+# Returns the field value, or empty string if not found
+project_spec_field() {
+  local file="$1"
+  local section="$2"
+  local key="$3"
+  awk -v section="$section" -v key="$key" '
+    $0 == section { in_section=1; next }
+    in_section && /^## / { in_section=0; next }
+    in_section && $0 ~ "^" key ": " {
+      sub("^" key ": ", "")
+      print
+      exit
+    }
+  ' "$file"
+}
+
+# Check if a section exists in project.md
+# Usage: project_spec_has_section <file> <section_header>
+project_spec_has_section() {
+  local file="$1"
+  local section="$2"
+  grep -qxF "$section" "$file" 2>/dev/null
+}
+
+# ─── Scan repos and build repo state map ─────────────────────────────────────
+# Temp file: each line is tab-separated: alias<TAB>name<TAB>description<TAB>milestone<TAB>milestone_label<TAB>progress<TAB>next_feature<TAB>operational
+
+REPO_SCAN_FILE="$COUNTER_DIR/repo_scan"
+touch "$REPO_SCAN_FILE"
+
+GIT_ROOT="${HOME}/git"
+
+for repo_dir in "$GIT_ROOT"/*/; do
+  [[ -d "$repo_dir" ]] || continue
+
+  repo_name=$(basename "$repo_dir")
+
+  # Skip launchpad (infrastructure, not a project)
+  [[ "$repo_name" == "launchpad" ]] && continue
+
+  project_md="$repo_dir/.claude/project.md"
+  [[ -f "$project_md" ]] || continue
+
+  # Read Identity fields
+  r_name=$(project_spec_field "$project_md" "## Identity" "name")
+  r_alias=$(project_spec_field "$project_md" "## Identity" "alias")
+  r_desc=$(project_spec_field "$project_md" "## Identity" "description")
+
+  # Use repo directory name as fallback
+  [[ -z "$r_name" ]]  && r_name="$repo_name"
+  [[ -z "$r_alias" ]] && r_alias="$repo_name"
+
+  # Read State fields (or default to operational if section absent)
+  if project_spec_has_section "$project_md" "## State"; then
+    r_milestone=$(project_spec_field "$project_md" "## State" "milestone")
+    r_milestone_label=$(project_spec_field "$project_md" "## State" "milestone-label")
+    r_progress=$(project_spec_field "$project_md" "## State" "progress")
+    r_next_feature=$(project_spec_field "$project_md" "## State" "next-feature")
+    r_operational=$(project_spec_field "$project_md" "## State" "operational")
+    [[ -z "$r_operational" ]] && r_operational="false"
+  else
+    r_milestone=""
+    r_milestone_label=""
+    r_progress=""
+    r_next_feature=""
+    r_operational="true"
+  fi
+
+  # Repos explicitly marked operational: clear milestone details
+  if [[ "$r_operational" == "true" ]]; then
+    r_milestone=""
+    r_milestone_label=""
+    r_progress=""
+    r_next_feature=""
+  fi
+
+  # Use sentinel __E__ for empty fields so IFS tab-split preserves field positions
+  [[ -z "$r_alias" ]]         && r_alias="__E__"
+  [[ -z "$r_name" ]]          && r_name="__E__"
+  [[ -z "$r_desc" ]]          && r_desc="__E__"
+  [[ -z "$r_milestone" ]]     && r_milestone="__E__"
+  [[ -z "$r_milestone_label" ]] && r_milestone_label="__E__"
+  [[ -z "$r_progress" ]]      && r_progress="__E__"
+  [[ -z "$r_next_feature" ]]  && r_next_feature="__E__"
+  [[ -z "$r_operational" ]]   && r_operational="__E__"
+
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$r_alias" "$r_name" "$r_desc" \
+    "$r_milestone" "$r_milestone_label" "$r_progress" "$r_next_feature" \
+    "$r_operational" >> "$REPO_SCAN_FILE"
+done
+
+# Helper: convert sentinel __E__ back to empty string
+unsent() { local v="$1"; [[ "$v" == "__E__" ]] && echo "" || echo "$v"; }
+
 # ─── Build projects aggregation ───────────────────────────────────────────────
+# Merge discoveries (PROJECTS_LIST_FILE) with repo scan (REPO_SCAN_FILE).
+# Match: discovery project id → repo alias (primary), then repo name.
+
+# Collect all project ids seen via discoveries
+ALL_PROJECTS_FILE="$COUNTER_DIR/all_projects"
+cp "$PROJECTS_LIST_FILE" "$ALL_PROJECTS_FILE"
+
+# Add repo aliases not yet registered via discoveries
+while IFS=$'\t' read -r _ra _rn _rd _rm _rml _rp _rnf _rop; do
+  ra=$(unsent "$_ra")
+  [[ -z "$ra" ]] && continue
+  if ! grep -qxF "$ra" "$ALL_PROJECTS_FILE" 2>/dev/null; then
+    echo "$ra" >> "$ALL_PROJECTS_FILE"
+  fi
+done < "$REPO_SCAN_FILE"
 
 PROJECTS_JSON=""
 first_project=1
 
 while IFS= read -r proj; do
     [[ -z "$proj" ]] && continue
+
+    # Apply project filter
+    if [[ -n "$FILTER_PROJECT" && "$proj" != "$FILTER_PROJECT" ]]; then
+      continue
+    fi
+
     draft_c=$(proj_counter_get "$proj" "draft")
     final_c=$(proj_counter_get "$proj" "final")
     archived_c=$(proj_counter_get "$proj" "archived")
     total_c=$(( draft_c + final_c + archived_c ))
     proj_esc=$(json_escape "$proj")
 
-    project_obj="{\"id\":\"${proj_esc}\",\"initiative_counts\":{\"draft\":${draft_c},\"final\":${final_c},\"archived\":${archived_c}},\"total\":${total_c}}"
+    # Look up repo state: match by alias first, then by name
+    r_alias=""; r_name=""; r_desc=""; r_milestone=""; r_milestone_label=""
+    r_progress=""; r_next_feature=""; r_operational="true"
+
+    while IFS=$'\t' read -r _ra _rn _rd _rm _rml _rp _rnf _rop; do
+      ra=$(unsent "$_ra"); rn=$(unsent "$_rn")
+      if [[ "$ra" == "$proj" || "$rn" == "$proj" ]]; then
+        r_alias="$ra"
+        r_name="$rn"
+        r_desc=$(unsent "$_rd")
+        r_milestone=$(unsent "$_rm")
+        r_milestone_label=$(unsent "$_rml")
+        r_progress=$(unsent "$_rp")
+        r_next_feature=$(unsent "$_rnf")
+        r_operational=$(unsent "$_rop")
+        break
+      fi
+    done < "$REPO_SCAN_FILE"
+
+    # Build JSON null-safe values
+    if [[ -n "$r_milestone" ]]; then
+      milestone_json="\"$(json_escape "$r_milestone")\""
+    else
+      milestone_json="null"
+    fi
+    if [[ -n "$r_milestone_label" ]]; then
+      milestone_label_json="\"$(json_escape "$r_milestone_label")\""
+    else
+      milestone_label_json="null"
+    fi
+    if [[ -n "$r_progress" ]]; then
+      progress_json="\"$(json_escape "$r_progress")\""
+    else
+      progress_json="null"
+    fi
+    if [[ -n "$r_next_feature" ]]; then
+      next_feature_json="\"$(json_escape "$r_next_feature")\""
+    else
+      next_feature_json="null"
+    fi
+    if [[ -n "$r_alias" ]]; then
+      alias_json="\"$(json_escape "$r_alias")\""
+    else
+      alias_json="null"
+    fi
+    if [[ -n "$r_desc" ]]; then
+      desc_json="\"$(json_escape "$r_desc")\""
+    else
+      desc_json="null"
+    fi
+    [[ "$r_operational" == "true" ]] && operational_json="true" || operational_json="false"
+
+    project_obj="{\"id\":\"${proj_esc}\",\"alias\":${alias_json},\"description\":${desc_json},\"milestone\":${milestone_json},\"milestone_label\":${milestone_label_json},\"progress\":${progress_json},\"next_feature\":${next_feature_json},\"operational\":${operational_json},\"initiative_counts\":{\"draft\":${draft_c},\"final\":${final_c},\"archived\":${archived_c}},\"total\":${total_c}}"
 
     if [[ $first_project -eq 0 ]]; then
       PROJECTS_JSON+=","
     fi
     PROJECTS_JSON+="$project_obj"
     first_project=0
-done < "$PROJECTS_LIST_FILE"
+done < "$ALL_PROJECTS_FILE"
+
+# ─── Parse cockpit-manual.yaml ────────────────────────────────────────────────
+
+MANUAL_YAML="${HOME}/.claude/cockpit-manual.yaml"
+NEEDS_ATTENTION_JSON="[]"
+LIMBO_JSON="[]"
+
+if [[ -f "$MANUAL_YAML" ]]; then
+  # Try python3 yaml first, fall back to awk parser
+  MANUAL_PARSED=$(python3 - "$MANUAL_YAML" <<'PYEOF' 2>/dev/null || true
+import sys, json
+
+yaml_path = sys.argv[1]
+
+try:
+    import yaml
+    with open(yaml_path, 'r') as f:
+        data = yaml.safe_load(f) or {}
+    needs_attention = data.get('needs-attention') or []
+    limbo = data.get('limbo') or []
+    print(json.dumps({"needs_attention": needs_attention, "limbo": limbo}))
+except ImportError:
+    # yaml not available — signal fallback
+    print("FALLBACK")
+PYEOF
+)
+
+  if [[ "$MANUAL_PARSED" == "FALLBACK" || -z "$MANUAL_PARSED" ]]; then
+    # Awk fallback: parse flat YAML structure
+    MANUAL_PARSED=$(awk '
+      BEGIN { section=""; in_needs=0; in_limbo=0; needs_arr=""; limbo_arr="" }
+      /^needs-attention:/ { section="needs"; in_needs=1; in_limbo=0; next }
+      /^limbo:/ { section="limbo"; in_limbo=1; in_needs=0; next }
+      /^[a-z]/ { section=""; in_needs=0; in_limbo=0 }
+      in_needs && /^[[:space:]]*-[[:space:]]/ {
+        val=$0; sub(/^[[:space:]]*-[[:space:]]*/,"",val)
+        # skip comment lines
+        if (val ~ /^#/) next
+        if (needs_arr != "") needs_arr = needs_arr ","
+        gsub(/"/, "\\\"", val)
+        needs_arr = needs_arr "\"" val "\""
+      }
+      in_limbo && /^[[:space:]]*-[[:space:]]/ {
+        val=$0; sub(/^[[:space:]]*-[[:space:]]*/,"",val)
+        if (val ~ /^#/) next
+        if (limbo_arr != "") limbo_arr = limbo_arr ","
+        gsub(/"/, "\\\"", val)
+        limbo_arr = limbo_arr "\"" val "\""
+      }
+      END {
+        print "{\"needs_attention\":[" needs_arr "],\"limbo\":[" limbo_arr "]}"
+      }
+    ' "$MANUAL_YAML")
+  fi
+
+  if [[ -n "$MANUAL_PARSED" && "$MANUAL_PARSED" != "FALLBACK" ]]; then
+    NEEDS_ATTENTION_JSON=$(python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(json.dumps(d.get('needs_attention',[])))" <<< "$MANUAL_PARSED" 2>/dev/null || echo "[]")
+    LIMBO_JSON=$(python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(json.dumps(d.get('limbo',[])))" <<< "$MANUAL_PARSED" 2>/dev/null || echo "[]")
+  fi
+fi
 
 # ─── Assemble final JSON ──────────────────────────────────────────────────────
 
@@ -402,13 +639,184 @@ else
   FILTER_VAL="null"
 fi
 
-FINAL_JSON="{\"generated_at\":\"${GENERATED_AT}\",\"filter_project\":${FILTER_VAL},\"projects\":[${PROJECTS_JSON}],\"initiatives\":[${INITIATIVES_JSON}],\"plans\":[${PLANS_JSON}]}"
+FINAL_JSON="{\"generated_at\":\"${GENERATED_AT}\",\"filter_project\":${FILTER_VAL},\"projects\":[${PROJECTS_JSON}],\"initiatives\":[${INITIATIVES_JSON}],\"plans\":[${PLANS_JSON}],\"needs_attention\":${NEEDS_ATTENTION_JSON},\"limbo\":${LIMBO_JSON}}"
+
+# ─── generate_cockpit_md() ─────────────────────────────────────────────────────
+
+generate_cockpit_md() {
+  local json_file="$1"
+  local output="${HOME}/git/cockpit.md"
+  python3 - "$json_file" "$output" <<'PYEOF'
+import sys, json, re
+
+json_path   = sys.argv[1]
+output_path = sys.argv[2]
+
+with open(json_path, 'r') as f:
+    data = json.load(f)
+
+generated_at = data.get('generated_at', '')
+projects = data.get('projects', [])
+initiatives = data.get('initiatives', [])
+needs_attention = data.get('needs_attention', [])
+limbo = data.get('limbo', [])
+
+# Build initiatives index by project
+initiatives_by_project = {}
+for init in initiatives:
+    proj = init.get('project', '')
+    if proj not in initiatives_by_project:
+        initiatives_by_project[proj] = []
+    initiatives_by_project[proj].append(init)
+
+# Separate milestone vs operational projects
+milestone_projects = []
+operational_projects = []
+
+for p in projects:
+    proj_id = p.get('id', '')
+    # Skip limbo projects from main listing
+    if proj_id in limbo:
+        continue
+    if p.get('milestone') and not p.get('operational', False):
+        milestone_projects.append(p)
+    else:
+        operational_projects.append(p)
+
+# Sort milestone projects by progress (least progress first — more work to do)
+def parse_progress(p):
+    prog = p.get('progress') or ''
+    m = re.match(r'(\d+)/(\d+)', str(prog))
+    if m:
+        done, total = int(m.group(1)), int(m.group(2))
+        return done / total if total > 0 else 0.0
+    return 0.0
+
+milestone_projects.sort(key=parse_progress)
+
+# Sort operational alphabetically
+operational_projects.sort(key=lambda p: (p.get('id') or '').lower())
+
+lines = []
+lines.append('# Mission Control')
+lines.append(f'_Auto-generated: {generated_at}. Run \`cockpit.sh --refresh\` to update._')
+lines.append('')
+lines.append('## Projects')
+lines.append('')
+
+# Milestone projects
+for p in milestone_projects:
+    proj_id = p.get('id', '')
+    alias = p.get('alias') or proj_id
+    milestone = p.get('milestone') or ''
+    milestone_label = p.get('milestone_label') or ''
+    progress = p.get('progress') or ''
+    next_feature = p.get('next_feature') or ''
+    desc = p.get('description') or ''
+
+    header = f"### {proj_id} ({alias})"
+    if milestone:
+        m_str = f"M{milestone}" if not str(milestone).startswith('M') else str(milestone)
+        if milestone_label:
+            header += f" — {m_str}: {milestone_label}"
+        else:
+            header += f" — {m_str}"
+    lines.append(header)
+
+    meta_parts = []
+    if progress:
+        meta_parts.append(f"Progress: {progress}")
+    if next_feature:
+        meta_parts.append(f"Next: {next_feature}")
+    if meta_parts:
+        lines.append(' | '.join(meta_parts))
+    elif desc:
+        lines.append(desc)
+
+    # Initiatives for this project
+    proj_initiatives = initiatives_by_project.get(proj_id, [])
+    if proj_initiatives:
+        init_parts = []
+        for init in proj_initiatives:
+            init_id = init.get('id', '')
+            phase = init.get('phase', '')
+            if phase:
+                init_parts.append(f"{init_id} ({phase})")
+            else:
+                init_parts.append(init_id)
+        lines.append('')
+        lines.append(f"**Initiatives:** {', '.join(init_parts)}")
+
+    lines.append('')
+
+# Operational projects
+for p in operational_projects:
+    proj_id = p.get('id', '')
+    alias = p.get('alias') or proj_id
+    desc = p.get('description') or ''
+
+    lines.append(f"### {proj_id} ({alias}) — Operational")
+    if desc:
+        lines.append(desc)
+
+    # Initiatives for this project
+    proj_initiatives = initiatives_by_project.get(proj_id, [])
+    if proj_initiatives:
+        init_parts = []
+        for init in proj_initiatives:
+            init_id = init.get('id', '')
+            phase = init.get('phase', '')
+            if phase:
+                init_parts.append(f"{init_id} ({phase})")
+            else:
+                init_parts.append(init_id)
+        lines.append('')
+        lines.append(f"**Initiatives:** {', '.join(init_parts)}")
+
+    lines.append('')
+
+# Needs Attention
+if needs_attention:
+    lines.append('## Needs Attention')
+    lines.append('| Project | Action | Type | Context |')
+    lines.append('|---|---|---|---|')
+    for item in needs_attention:
+        if isinstance(item, dict):
+            proj = item.get('project', '')
+            action = item.get('action', '')
+            itype = item.get('type', '')
+            context = item.get('context', '')
+            lines.append(f"| {proj} | {action} | {itype} | {context} |")
+    lines.append('')
+
+# Limbo
+if limbo:
+    lines.append('## Limbo')
+    lines.append(', '.join(limbo))
+    lines.append('')
+
+with open(output_path, 'w') as f:
+    f.write('\n'.join(lines))
+
+print(f"cockpit.md written to {output_path}")
+PYEOF
+}
 
 # ─── Output ───────────────────────────────────────────────────────────────────
 
 if [[ $JSON_ONLY -eq 1 ]]; then
   printf '%s\n' "$FINAL_JSON"
   exit 0
+fi
+
+# --refresh: save JSON, generate cockpit.md, then open HTML
+if [[ $REFRESH -eq 1 ]]; then
+  COCKPIT_JSON_PATH="${HOME}/.claude/cockpit.json"
+  printf '%s\n' "$FINAL_JSON" > "$COCKPIT_JSON_PATH"
+
+  generate_cockpit_md "$COCKPIT_JSON_PATH"
+
+  # Fall through to HTML generation
 fi
 
 # Inject into HTML template
@@ -443,6 +851,10 @@ with open(output_path, 'w') as f:
 PYEOF
 
 rm -f "$JSON_TMP"
+
+if [[ $REFRESH -eq 1 ]]; then
+  echo "cockpit.json + cockpit.md + HTML generated"
+fi
 
 open "$OUTPUT"
 echo "$OUTPUT"
