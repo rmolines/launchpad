@@ -326,6 +326,11 @@ if [ -d "$DISCOVERY_DIR" ]; then
 fi
 ```
 
+Then refresh the cockpit to reflect the shipped state:
+```bash
+bash ~/git/launchpad/scripts/cockpit.sh --refresh
+```
+
 ---
 
 ## Final report

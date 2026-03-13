@@ -151,6 +151,50 @@
   .toggle-btn svg { transition: transform 0.2s; }
   .toggle-btn.open svg { transform: rotate(180deg); }
 
+  /* ── Progress bar ────────────────────────────────────────────── */
+  .progress-track {
+    height: 4px;
+    background: #1e2235;
+    border-radius: 2px;
+    overflow: hidden;
+    width: 100%;
+  }
+  .progress-fill {
+    height: 100%;
+    background: #6366f1;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+  .progress-fill.complete { background: #22c55e; }
+  .progress-fill.high     { background: #60a5fa; }
+
+  /* ── Pipeline project group ──────────────────────────────────── */
+  .pipeline-project-hdr {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #475569;
+    padding: 4px 0 3px 0;
+    margin-top: 8px;
+    margin-bottom: 3px;
+    border-top: 1px solid #1a1d2e;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .pipeline-project-hdr:first-child { margin-top: 0; border-top: none; }
+
+  /* ── Needs Attention / Limbo ─────────────────────────────────── */
+  .attention-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .attention-table th { text-align: left; color: #475569; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 8px 6px; border-bottom: 1px solid #1e2235; font-weight: 500; }
+  .attention-table td { padding: 5px 8px; color: #94a3b8; border-bottom: 1px solid #141720; }
+  .attention-table tr:last-child td { border-bottom: none; }
+  .attention-table tr:hover td { background: #1a1d2a; }
+
+  /* ── Operational badge ───────────────────────────────────────── */
+  .badge-operational { background: rgba(71,85,105,0.2); color: #64748b; border: 1px solid #334155; }
+
   /* ── Tabs panel ──────────────────────────────────────────────── */
   .cockpit-tab { display: none; }
   .cockpit-tab.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
@@ -210,8 +254,12 @@
   <!-- Project cards -->
   <div class="text-[10px] text-slate-600 uppercase tracking-widest mb-3">Projects</div>
   <div id="overview-projects" class="flex flex-wrap gap-3 mb-8"></div>
-  <!-- Recent activity -->
-  <div class="text-[10px] text-slate-600 uppercase tracking-widest mb-3">Recent Activity</div>
+  <!-- Needs Attention (populated by renderOverview) -->
+  <div id="overview-attention"></div>
+  <!-- Limbo (populated by renderOverview) -->
+  <div id="overview-limbo"></div>
+  <!-- Recent Initiatives -->
+  <div class="text-[10px] text-slate-600 uppercase tracking-widest mb-3">Recent Initiatives</div>
   <div id="overview-activity" class="panel overflow-hidden"></div>
 </div>
 
@@ -403,7 +451,11 @@ function switchTab(name) {
 function initHeader() {
   const genAt = DATA.generated_at || '';
   document.getElementById('hdr-date').textContent = genAt ? formatDate(genAt) : '';
-  document.getElementById('hdr-projects').textContent = (DATA.projects || []).length;
+  // Use repo-scanned project count if available, fallback to discovery-derived
+  const projectCount = DATA.repo_project_count !== undefined
+    ? DATA.repo_project_count
+    : (DATA.projects || []).length;
+  document.getElementById('hdr-projects').textContent = projectCount;
   document.getElementById('hdr-initiatives').textContent = (DATA.initiatives || []).length;
   document.getElementById('hdr-plans').textContent = (DATA.plans || []).length;
 }
@@ -411,6 +463,33 @@ function initHeader() {
 // ════════════════════════════════════════════════════════════════════════
 // TAB: OVERVIEW
 // ════════════════════════════════════════════════════════════════════════
+
+function parseProgress(progressStr) {
+  if (!progressStr) return null;
+  const match = String(progressStr).match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (!match) return null;
+  const done = parseInt(match[1], 10);
+  const total = parseInt(match[2], 10);
+  if (total === 0) return null;
+  return { done, total, pct: Math.round((done / total) * 100) };
+}
+
+function renderProgressBar(progressStr) {
+  const p = parseProgress(progressStr);
+  if (!p) return '';
+  const fillClass = p.pct >= 100 ? 'complete' : p.pct >= 60 ? 'high' : '';
+  return `
+    <div class="mt-2">
+      <div class="flex items-center justify-between mb-1" style="font-size:10px;">
+        <span style="color:#475569;">${p.done}/${p.total} scopes</span>
+        <span style="color:#64748b;">${p.pct}%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill ${fillClass}" style="width:${p.pct}%;"></div>
+      </div>
+    </div>
+  `;
+}
 
 function renderOverview() {
   // Filter banner
@@ -432,19 +511,112 @@ function renderOverview() {
   if (projects.length === 0) {
     projectsEl.innerHTML = `<div class="text-slate-700 text-sm">No projects found.</div>`;
   } else {
-    projectsEl.innerHTML = projects.map(p => `
-      <div class="panel px-4 py-3 min-w-[180px]">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="project-badge ${projectClass(p.id)}">${esc(projectLabel(p.id))}</span>
-          <span class="text-slate-500 text-xs ml-auto">${p.total || 0} total</span>
+    const activeProjects = projects.filter(p => !p.operational);
+    const operationalProjects = projects.filter(p => p.operational);
+
+    let cardsHtml = '';
+
+    activeProjects.forEach(p => {
+      const alias = p.alias || p.id;
+      const name = p.description || p.id;
+      const milestoneLabel = p.milestone_label || p.milestone || '';
+      const nextFeature = p.next_feature || '';
+      const progressStr = p.progress || '';
+
+      cardsHtml += `
+        <div class="panel px-4 py-3" style="min-width:220px;max-width:300px;">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="project-badge ${projectClass(p.id)}">${esc(alias)}</span>
+            <span class="text-slate-400 text-xs font-medium truncate flex-1">${esc(name)}</span>
+          </div>
+          ${milestoneLabel ? `
+            <div class="flex items-center gap-1 mb-1" style="font-size:10px;">
+              <span style="color:#475569;">milestone</span>
+              <span style="color:#94a3b8;margin-left:4px;">${esc(milestoneLabel)}</span>
+            </div>
+          ` : ''}
+          ${progressStr ? renderProgressBar(progressStr) : `
+            <div class="flex items-center gap-2 flex-wrap mt-1">
+              ${(p.initiative_counts || {}).draft ? `<span class="badge badge-draft">${p.initiative_counts.draft} draft</span>` : ''}
+              ${(p.initiative_counts || {}).final ? `<span class="badge badge-final">${p.initiative_counts.final} final</span>` : ''}
+              ${(p.initiative_counts || {}).archived ? `<span class="badge badge-archived">${p.initiative_counts.archived} archived</span>` : ''}
+            </div>
+          `}
+          ${nextFeature ? `
+            <div class="mt-2" style="font-size:10px;color:#475569;">
+              next: <span style="color:#818cf8;">${esc(nextFeature)}</span>
+            </div>
+          ` : ''}
         </div>
-        <div class="flex items-center gap-2 flex-wrap">
-          ${(p.initiative_counts || {}).draft ? `<span class="badge badge-draft">${p.initiative_counts.draft} draft</span>` : ''}
-          ${(p.initiative_counts || {}).final ? `<span class="badge badge-final">${p.initiative_counts.final} final</span>` : ''}
-          ${(p.initiative_counts || {}).archived ? `<span class="badge badge-archived">${p.initiative_counts.archived} archived</span>` : ''}
+      `;
+    });
+
+    if (operationalProjects.length > 0) {
+      cardsHtml += operationalProjects.map(p => {
+        const alias = p.alias || p.id;
+        const name = p.description || p.id;
+        return `
+          <div class="panel px-4 py-3" style="min-width:180px;max-width:240px;opacity:0.7;">
+            <div class="flex items-center gap-2">
+              <span class="project-badge project-default">${esc(alias)}</span>
+              <span class="text-slate-500 text-xs truncate flex-1">${esc(name)}</span>
+            </div>
+            <div class="mt-2">
+              <span class="badge badge-operational">Operational</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    projectsEl.innerHTML = cardsHtml;
+  }
+
+  // Needs Attention section
+  const needsAttention = DATA.needs_attention || [];
+  const attentionEl = document.getElementById('overview-attention');
+  if (attentionEl) {
+    if (needsAttention.length > 0) {
+      attentionEl.innerHTML = `
+        <div class="text-[10px] text-slate-600 uppercase tracking-widest mb-3 mt-2">Needs Attention</div>
+        <div class="panel overflow-hidden mb-8">
+          <table class="attention-table">
+            <thead><tr>
+              <th>Project</th><th>Action</th><th>Type</th>
+            </tr></thead>
+            <tbody>
+              ${needsAttention.map(item => `
+                <tr>
+                  <td><span class="project-badge ${projectClass(item.project || item.id)}">${esc(item.project || item.id || '—')}</span></td>
+                  <td>${esc(item.action || item.message || '—')}</td>
+                  <td><span style="color:#64748b;font-size:10px;">${esc(item.type || '—')}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
         </div>
-      </div>
-    `).join('');
+      `;
+    } else {
+      attentionEl.innerHTML = '';
+    }
+  }
+
+  // Limbo section
+  const limbo = DATA.limbo || [];
+  const limboEl = document.getElementById('overview-limbo');
+  if (limboEl) {
+    if (limbo.length > 0) {
+      const limboBadges = limbo.map(item => {
+        const label = typeof item === 'string' ? item : (item.id || item.name || String(item));
+        return `<span class="project-badge project-default" style="margin-right:4px;margin-bottom:4px;">${esc(label)}</span>`;
+      }).join('');
+      limboEl.innerHTML = `
+        <div class="text-[10px] text-slate-600 uppercase tracking-widest mb-3 mt-2">Limbo</div>
+        <div class="mb-8 flex flex-wrap">${limboBadges}</div>
+      `;
+    } else {
+      limboEl.innerHTML = '';
+    }
   }
 
   // Recent activity
@@ -461,7 +633,7 @@ function renderOverview() {
   }
 
   activityEl.innerHTML = `
-    <div class="px-3 py-2 border-b border-[#1e2235] text-[10px] text-slate-600 uppercase tracking-widest">Recent</div>
+    <div class="px-3 py-2 border-b border-[#1e2235] text-[10px] text-slate-600 uppercase tracking-widest">Recent Initiatives</div>
     <div class="divide-y divide-[#141720]">
       ${initiatives.map(i => {
         const ph = PHASE_LABELS[i.phase] || PHASE_LABELS['seed'];
@@ -514,7 +686,7 @@ function renderPipeline() {
   });
 
   let html = '';
-  const mainPhases = PHASES.filter(p => p.id !== 'shipped');
+  const mainPhases = PHASES.filter(p => p.id !== 'shipped' && p.id !== 'approved');
   mainPhases.forEach((phase, idx) => {
     html += renderPhaseColumn(phase, byPhase[phase.id]);
     if (idx < mainPhases.length - 1) {
@@ -527,8 +699,10 @@ function renderPipeline() {
     }
   });
 
-  // Divider + shipped
+  // Approved + Shipped always visible (separated by divider)
   html += `<div style="width:1px;background:#1a1d2e;margin:0 14px;align-self:stretch;flex-shrink:0;"></div>`;
+  html += renderPhaseColumn(PHASES.find(p => p.id === 'approved'), byPhase['approved']);
+  html += `<div style="width:1px;background:#1a1d2e;margin:0 8px;align-self:stretch;flex-shrink:0;"></div>`;
   html += renderPhaseColumn(PHASES.find(p => p.id === 'shipped'), byPhase['shipped']);
 
   document.getElementById('pipeline-board').innerHTML = html;
@@ -538,9 +712,38 @@ function renderPhaseColumn(phase, items) {
   const count = items.length;
   const hdrColor = (PHASE_LABELS[phase.id] || { color: '#64748b' }).color;
   const dotCls = `dot-${phase.id}`;
-  const cards = count > 0
-    ? items.map(i => renderPipelineCard(i)).join('')
-    : `<div class="empty-col">—</div>`;
+
+  // Group initiatives by project
+  const projectGroups = {};
+  const projectOrder = [];
+  items.forEach(i => {
+    const key = i.project || 'unknown';
+    if (!projectGroups[key]) {
+      projectGroups[key] = [];
+      projectOrder.push(key);
+    }
+    projectGroups[key].push(i);
+  });
+
+  let cardsHtml = '';
+  if (count === 0) {
+    cardsHtml = `<div class="empty-col">—</div>`;
+  } else if (projectOrder.length === 1) {
+    // Single project — no need for project header
+    cardsHtml = items.map(i => renderPipelineCard(i)).join('');
+  } else {
+    // Multiple projects — add project separators
+    projectOrder.forEach((projKey, gi) => {
+      const projItems = projectGroups[projKey];
+      cardsHtml += `
+        <div class="pipeline-project-hdr" style="${gi === 0 ? 'border-top:none;margin-top:0;' : ''}">
+          <span class="project-badge ${projectClass(projKey)}">${esc(projectLabel(projKey))}</span>
+          <span style="color:#334155;">${projItems.length}</span>
+        </div>
+      `;
+      cardsHtml += projItems.map(i => renderPipelineCard(i)).join('');
+    });
+  }
 
   return `
     <div class="phase-col" style="width:200px;">
@@ -552,7 +755,7 @@ function renderPhaseColumn(phase, items) {
         </div>
         <div style="color:#4f5e7a;font-size:10px;padding-left:15px;">${phase.desc}</div>
       </div>
-      <div>${cards}</div>
+      <div>${cardsHtml}</div>
     </div>
   `;
 }
@@ -968,13 +1171,28 @@ function renderSchemaTab() {
     const pInits = initiatives.filter(i => i.project === p.id);
     const health = pInits.length > 0 ? 'green' : 'yellow';
     const dotCls = health === 'green' ? 'status-green' : 'status-yellow';
+    const alias = p.alias || p.id;
+    const milestoneLabel = p.milestone_label || p.milestone || '';
+    const progressStr = p.progress || '';
+    const prog = parseProgress(progressStr);
+
     return `
       <button onclick="selectSchemaProject('${esc(p.id)}')"
-        class="table-row w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs"
+        class="table-row w-full text-left px-2 py-2 rounded"
         id="schema-proj-btn-${esc(p.id)}">
-        <span class="status-dot ${dotCls}"></span>
-        <span class="flex-1 text-left text-slate-300">${esc(projectLabel(p.id))}</span>
-        <span class="text-[10px] px-1.5 rounded" style="background:#1e2235;color:#64748b;">${pInits.length}</span>
+        <div class="flex items-center gap-2">
+          <span class="status-dot ${dotCls}"></span>
+          <span class="flex-1 text-xs text-slate-300">${esc(alias)}</span>
+          <span class="text-[10px] px-1.5 rounded" style="background:#1e2235;color:#64748b;">${pInits.length}</span>
+        </div>
+        ${milestoneLabel ? `<div style="font-size:9px;color:#475569;padding-left:15px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(milestoneLabel)}</div>` : ''}
+        ${prog ? `
+          <div style="padding-left:15px;margin-top:3px;">
+            <div class="progress-track" style="height:3px;">
+              <div class="progress-fill ${prog.pct >= 100 ? 'complete' : prog.pct >= 60 ? 'high' : ''}" style="width:${prog.pct}%;"></div>
+            </div>
+          </div>
+        ` : ''}
       </button>
     `;
   }).join('');
@@ -1004,12 +1222,25 @@ function selectSchemaProject(projectId) {
 
   const columns = ['id', 'status', 'phase', 'tags', 'created', 'updated'];
 
+  // Get project details for header
+  const projData = (DATA.projects || []).find(p => p.id === projectId);
+  const projMilestone = projData ? (projData.milestone_label || projData.milestone || '') : '';
+  const projProgress = projData ? (projData.progress || '') : '';
+  const progParsed = parseProgress(projProgress);
+
   main.innerHTML = `
     <div class="flex-1 overflow-y-auto p-5">
-      <div class="flex items-center gap-3 mb-4">
+      <div class="flex items-center gap-3 mb-1">
         <span class="project-badge ${projectClass(projectId)}">${esc(projectLabel(projectId))}</span>
         <span class="text-slate-500 text-xs">${initiatives.length} initiative${initiatives.length !== 1 ? 's' : ''}</span>
+        ${projMilestone ? `<span style="font-size:10px;color:#475569;">· ${esc(projMilestone)}</span>` : ''}
+        ${progParsed ? `<span style="font-size:10px;color:#64748b;margin-left:auto;">${progParsed.pct}% complete</span>` : ''}
       </div>
+      ${progParsed ? `
+        <div class="progress-track mb-4" style="margin-top:6px;">
+          <div class="progress-fill ${progParsed.pct >= 100 ? 'complete' : progParsed.pct >= 60 ? 'high' : ''}" style="width:${progParsed.pct}%;"></div>
+        </div>
+      ` : '<div class="mb-4"></div>'}
       <div class="panel overflow-hidden">
         <table class="w-full text-xs">
           <thead>
@@ -1022,7 +1253,7 @@ function selectSchemaProject(projectId) {
           </tbody>
         </table>
       </div>
-      <div class="text-[10px] text-slate-700 mt-2 px-1">${initiatives.length} records — click a row for details</div>
+      <div class="text-[10px] text-slate-700 mt-2 px-1">${initiatives.length} initiative${initiatives.length !== 1 ? 's' : ''} — click a row for details</div>
     </div>
   `;
 }
@@ -1065,7 +1296,7 @@ function selectSchemaRecord(idx) {
   content.innerHTML = `
     <div class="flex items-start justify-between mb-4">
       <div>
-        <div class="text-xs text-slate-600 mb-1">${esc(projectLabel(record.project))}</div>
+        <div class="text-[10px] text-slate-600 mb-1 uppercase tracking-wider">Initiative · ${esc(projectLabel(record.project))}</div>
         <div class="text-sm text-indigo-300 font-mono font-medium break-all">${esc(record.id)}</div>
       </div>
       <button onclick="closeSchemaDetail()" class="text-slate-600 hover:text-slate-400 text-sm ml-2 flex-shrink-0">✕</button>
