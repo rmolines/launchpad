@@ -1,5 +1,11 @@
 # Changelog
 
+## requirements-split — PR #9 — 2026-03-13
+**Type:** improvement
+**PRD:** ~/.claude/discoveries/fl/requirements-split/prd.md
+**Commit:** `git show d93321f`
+**What:** PRD template now separates functional requirements (stakeholder-verifiable, R<N> format) from technical specs (implementation guidance for planning). Quality gate validates requirements are functional and cover all problem facets. Planning consumes Technical Specs for deliverable prompts.
+
 ## GTM Skill — PR #8 — 2026-03-13
 **Type:** feat
 **PRD:** ~/.claude/discoveries/fl/gtm/prd.md
