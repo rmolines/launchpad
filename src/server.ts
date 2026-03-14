@@ -75,10 +75,6 @@ export function startHttpServer(port: number): ReturnType<typeof Bun.serve> {
           return handleGetMissionModuleStatus(segments[0]!, segments[1]!, segments[2]!);
         }
         if (segments.length === 4) {
-          // 3-segment path: mission/stage/module — return module status
-          return handleGetMissionModuleStatus(segments[0]!, segments[1]!, segments[2]!);
-        }
-        if (segments.length === 5) {
           // /api/missions/:mission/:stage/:module/:docType
           return handleGetMissionDocument(segments[0]!, segments[1]!, segments[2]!, segments[3]!);
         }
