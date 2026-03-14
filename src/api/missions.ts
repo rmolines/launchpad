@@ -112,37 +112,37 @@ function classifyModuleStatus(moduleDir: string): "draft" | "final" | "archived"
 }
 
 /**
- * Count modules in a given initiatives dir by alias.
- * Checks ~/.claude/initiatives/<alias>/ for subdirs.
+ * Count modules across all stages in a mission.
+ * Iterates ~/.claude/missions/<alias>/<stage>/<module>/ (3-level hierarchy).
  */
 function countModules(alias: string): ModuleCounts {
-  const initiativesRoot = join(homedir(), ".claude", "initiatives");
-  const missionDir = join(initiativesRoot, alias);
+  const missionsRoot = getMissionsRoot();
+  const missionDir = join(missionsRoot, alias);
   const counts: ModuleCounts = { draft: 0, final: 0, archived: 0 };
 
   if (!existsSync(missionDir)) return counts;
 
-  // Count archived subdirs
-  const archivedDir = join(missionDir, "archived");
-  if (existsSync(archivedDir) && statSync(archivedDir).isDirectory()) {
-    const archivedEntries = readdirSync(archivedDir).filter((e) => {
-      return statSync(join(archivedDir, e)).isDirectory();
-    });
-    counts.archived = archivedEntries.length;
-  }
+  const stageIds = listStages(alias);
+  for (const stageId of stageIds) {
+    const stageDir = join(missionDir, stageId);
 
-  // Count active modules
-  const entries = readdirSync(missionDir).filter((e) => {
-    if (e === "archived" || e === "_reviews") return false;
-    return statSync(join(missionDir, e)).isDirectory();
-  });
+    // Count archived subdirs within stage
+    const archivedDir = join(stageDir, "archived");
+    if (existsSync(archivedDir) && statSync(archivedDir).isDirectory()) {
+      const archivedEntries = readdirSync(archivedDir).filter((e) => {
+        return statSync(join(archivedDir, e)).isDirectory();
+      });
+      counts.archived += archivedEntries.length;
+    }
 
-  for (const entry of entries) {
-    const entryDir = join(missionDir, entry);
-    const category = classifyModuleStatus(entryDir);
-    if (category === "draft") counts.draft++;
-    else if (category === "final") counts.final++;
-    // active modules won't be "archived" here since we filtered above
+    // Count active modules within stage
+    const moduleIds = listModules(alias, stageId);
+    for (const modId of moduleIds) {
+      const modDir = join(stageDir, modId);
+      const category = classifyModuleStatus(modDir);
+      if (category === "draft") counts.draft++;
+      else if (category === "final") counts.final++;
+    }
   }
 
   return counts;
@@ -283,7 +283,7 @@ export async function handleListMissions(): Promise<Response> {
       const stages = await buildStageEntries(alias);
 
       missions.push({
-        id: repoName,
+        id: alias,
         alias,
         name,
         description,
@@ -410,10 +410,11 @@ export async function handleGetMissionDocument(
       return errorResponse(`Module not found: ${mission}/${stage}/${module}`, 404);
     }
 
-    const filePath = join(moduleDir, docType);
+    const resolvedDocType = docType.endsWith(".md") ? docType : `${docType}.md`;
+    const filePath = join(moduleDir, resolvedDocType);
     if (!existsSync(filePath)) {
       return errorResponse(
-        `Document not found: ${mission}/${stage}/${module}/${docType}`,
+        `Document not found: ${mission}/${stage}/${module}/${resolvedDocType}`,
         404
       );
     }
