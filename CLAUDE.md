@@ -81,6 +81,19 @@ Rule: never read `status:` from `draft.md` frontmatter. Always call `init_get_st
 or `deriveStatus()`. Do not assume `init_update_fields` strips unknown frontmatter
 fields.
 
+### Reading initiatives files — QMD fallback to bash cat
+A guard hook blocks `Read`, `Write`, and `Edit` tools on `~/.claude/initiatives/` and
+`~/.claude/discoveries/`. The hook directs to QMD tools, but files may not be indexed.
+
+**Strategy (one attempt, then fallback):**
+1. Try `qmd.get` with the exact relative path (e.g. `initiatives/fl/feature/plan.md`)
+2. If QMD returns "not found" → immediately use `Bash(cat <full-path>)` as fallback
+3. Do NOT retry with `multi_get`, `query`, or other QMD search variants — if `qmd.get`
+   can't find the file by exact path, search variants won't find it either
+
+This applies to all skills that read from initiatives: delivery, review, planning, ship,
+portfolio-review.
+
 ### `parse_requirements` in plan-view.sh silently drops requirements on format mismatch
 The awk parser in `scripts/plan-view.sh` only recognises requirement lines matching
 exactly `- **R<N>:** <text>`. Any deviation — missing bold markers (`- R1: text`),
