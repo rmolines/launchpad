@@ -172,7 +172,7 @@ export async function handleListMissions(): Promise<Response> {
         operational = true;
       }
 
-      // If operational, clear milestone details (mirrors cockpit.sh behavior)
+      // If operational, clear milestone details (no active stage to show)
       if (operational) {
         stage = "";
         stage_label = "";
