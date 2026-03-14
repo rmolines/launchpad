@@ -1,5 +1,11 @@
 # Changelog
 
+## UX Journeys — PR #14 — 2026-03-14
+**Type:** feat
+**PRD:** `~/.claude/initiatives/fl/ux-journeys/prd.md`
+**Commit:** `git show 5b859bd`
+**Decisions:** Paradigma de design thinking em 2 fases (guide → implementação). Template guide.md com 8 camadas UX. Integração com planning (detecção) e delivery (consumo).
+
 ## workspace-server-migration — PR #13 — 2026-03-13
 **Type:** migration
 **PRD:** ~/.claude/initiatives/fl/workspace-server-migration/draft.md
