@@ -1,5 +1,14 @@
 # Changelog
 
+## Session Isolation + Cockpit V2 — 2026-03-14
+**Type:** feat
+**PRD:** `~/.claude/initiatives/fl/session-isolation/prd.md`
+**Commit:** `git show 536277d`
+
+**Session Isolation:** Delivery agora cria `feat/<module>` branch antes de executar deliverables. Ship detecta feature branch automaticamente e cria PR com `--base` correto. Resolve o problema de commits intercalados quando múltiplas sessões rodam delivery no mesmo repo.
+
+**Cockpit V2:** Hierarquia 3 níveis (mission/stage/module) no MCP server, API, views e skills. Migration script de estrutura flat para hierárquica. Views com drill-down hierárquico.
+
 ## UX Journeys — PR #14 — 2026-03-14
 **Type:** feat
 **PRD:** `~/.claude/initiatives/fl/ux-journeys/prd.md`
