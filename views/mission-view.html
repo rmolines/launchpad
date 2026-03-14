@@ -163,10 +163,10 @@
             <div style="font-size:18px; font-weight:600; color:#e2e8f0;" x-text="modules.length"></div>
             <div>modules</div>
           </div>
-          <template x-if="mission && mission.total !== undefined">
+          <template x-if="mission && mission.module_counts && mission.module_counts.archived > 0">
             <div>
-              <div style="font-size:18px; font-weight:600; color:#e2e8f0;" x-text="mission.total || 0"></div>
-              <div>total</div>
+              <div style="font-size:18px; font-weight:600; color:#64748b;" x-text="mission.module_counts.archived"></div>
+              <div>archived</div>
             </div>
           </template>
         </div>

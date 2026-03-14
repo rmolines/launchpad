@@ -337,7 +337,7 @@
                   <div style="font-size:13px; font-weight:600; color:#e2e8f0;" x-text="m.alias || m.id"></div>
                   <div style="font-size:10px; color:#475569; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" x-text="m.description || '—'"></div>
                 </div>
-                <span class="badge" :class="'badge-' + (m.stage || 'seed')" x-text="m.stage_label || m.stage || 'seed'"></span>
+                <span class="badge" :class="'badge-' + (m.operational ? 'operational' : (m.stage || 'seed'))" x-text="m.operational ? 'operational' : (m.stage_label || m.stage || 'seed')"></span>
               </div>
               <!-- Progress bar -->
               <template x-if="m.progress !== undefined">
@@ -358,9 +358,12 @@
                 <span style="color:#475569;" x-show="m.module_counts">
                   <template x-if="m.module_counts">
                     <span>
-                      <span x-text="m.total || 0"></span> modules ·
+                      <span x-text="((m.module_counts && m.module_counts.draft) || 0) + ((m.module_counts && m.module_counts.final) || 0)"></span> modules ·
                       <span style="color:#4ade80;" x-text="(m.module_counts && m.module_counts.final) || 0"></span> final ·
                       <span style="color:#6366f1;" x-text="(m.module_counts && m.module_counts.draft) || 0"></span> draft
+                      <template x-if="m.module_counts && m.module_counts.archived > 0">
+                        <span> · <span style="color:#64748b;" x-text="m.module_counts.archived"></span> archived</span>
+                      </template>
                     </span>
                   </template>
                 </span>
