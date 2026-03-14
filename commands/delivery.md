@@ -48,12 +48,13 @@ If multiple found: list and ask the user to choose.
 
 ### Read context
 
-Read these **in parallel** (3 simultaneous reads):
+Read these **in parallel** (4 simultaneous reads):
 
 1. `plan.md` in full — especially the `## Execution DAG` section
 2. `prd.md` if it exists (product reference)
 3. `.claude/project.md` from the target repo — build/test commands, hot files
    - If no project config: `Warning: no project.md — using CLAUDE.md`
+4. `guide.md` if it exists in the same initiatives directory — UX journey spec
 
 > **Reading initiatives files:** see CLAUDE.md pitfall "Reading initiatives files".
 > TL;DR: try `qmd.get` with exact path → if not found → `Bash(cat <full-path>)`.
@@ -61,6 +62,26 @@ Read these **in parallel** (3 simultaneous reads):
 **Critical:** Read project.md in the same parallel batch as plan.md/prd.md.
 The build/test commands come from project.md — without it, baseline check will fail
 with wrong commands.
+
+### Guide-aware execution
+
+```bash
+ls ~/.claude/initiatives/$FEATURE_PATH/guide.md 2>/dev/null
+```
+
+If `guide.md` exists in the initiatives directory, any deliverable whose prompt mentions
+UI, screen, layout, component, or frontend work must receive the guide.md content as
+additional context. Prepend to the subagent prompt:
+
+```
+**UX Spec:** A `guide.md` exists for this feature. Read it before implementing:
+`~/.claude/initiatives/<path>/guide.md`
+
+Follow the journeys, flows, and screen specs defined there. Do not make ad-hoc
+UX decisions that contradict the guide.
+```
+
+If `guide.md` does not exist: proceed normally (no changes to behavior).
 
 ### Parse the Execution DAG
 
@@ -122,6 +143,7 @@ Check for:
 - Circular dependencies (stop and report)
 - Deliverables without acceptance criteria (warn)
 - Gate points in DAG (note: gates are opt-in — only pause where the plan explicitly sets gate: true)
+- UI deliverables without a `guide.md`: if the plan contains deliverables mentioning UI, screen, layout, component, or frontend, and no `guide.md` exists → `Warning: plan has UI deliverables but no guide.md — UX decisions will be ad-hoc. Consider running /launchpad:guide first.`
 
 If critical inconsistencies found: report to the user before starting.
 
