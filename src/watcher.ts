@@ -1,8 +1,19 @@
 import fs from "fs";
+import { join } from "path";
+import { homedir } from "os";
 import { getInitiativesRoot } from "./parser.js";
 
+function getMissionsRoot(): string {
+  const missionsPath = join(homedir(), ".claude", "missions");
+  if (fs.existsSync(missionsPath)) {
+    return missionsPath;
+  }
+  // Fall back to legacy initiatives/ path
+  return getInitiativesRoot();
+}
+
 export function startWatcher(onChanged: (filePath: string) => void): void {
-  const root = getInitiativesRoot();
+  const root = getMissionsRoot();
   process.stderr.write(`[workspace] Watching ${root}\n`);
 
   // Debounce: accumulate changed paths for 500ms then flush

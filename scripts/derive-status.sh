@@ -26,7 +26,7 @@ frontmatter_field() {
 # ─── Derive status from filesystem artifacts ──────────────────────────────────
 # Usage: derive_status <dir>
 # Echoes one of: shipped | approved | building | done | planned | ready | exploring | seed | unknown
-# Priority order: archived parent > review.md decision > results.md > plan.md > prd.md > cycles/ > draft.md > unknown
+# Priority order: archived parent > review.md decision > results.md > plan.md > prd.md|module.md > cycles/ > draft.md|draft-module.md > unknown
 
 derive_status() {
   local dir="$1"
@@ -66,7 +66,7 @@ derive_status() {
     return
   fi
 
-  if [[ -f "$dir/prd.md" ]]; then
+  if [[ -f "$dir/prd.md" ]] || [[ -f "$dir/module.md" ]]; then
     echo "ready"
     return
   fi
@@ -76,7 +76,7 @@ derive_status() {
     return
   fi
 
-  if [[ -f "$dir/draft.md" ]]; then
+  if [[ -f "$dir/draft.md" ]] || [[ -f "$dir/draft-module.md" ]]; then
     echo "seed"
     return
   fi

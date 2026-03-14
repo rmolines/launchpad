@@ -52,7 +52,7 @@ fi
 
 ### Parse arguments
 
-- Contains `/` → explicit `<mission>/<feature>` path. Resolve initiative at `~/.claude/initiatives/<mission>/<feature>/`.
+- Contains `/` → explicit `<mission>/<feature>` path. Resolve initiative at `~/.claude/missions/<mission>/<feature>/`.
 - Simple slug → feature name inside detected mission, or standalone use.
 - Empty → use current repo as context.
 
@@ -60,7 +60,7 @@ fi
 
 ```bash
 # Inside an initiative cycle:
-GUIDE_PATH="$HOME/.claude/initiatives/$MISSION/$FEATURE/guide.md"
+GUIDE_PATH="$HOME/.claude/missions/$MISSION/$FEATURE/guide.md"
 # Standalone mode:
 GUIDE_PATH="$REPO_ROOT/guide.md"
 ```
@@ -72,8 +72,8 @@ GUIDE_PATH="$REPO_ROOT/guide.md"
 
 If inside an initiatives path, try to read the PRD before starting:
 
-1. Try `qmd.get` with exact path (e.g. `initiatives/<mission>/<feature>/prd.md`)
-2. If not found → `Bash(cat ~/.claude/initiatives/<mission>/<feature>/prd.md)`
+1. Try `qmd.get` with exact path (e.g. `missions/<mission>/_backlog/<feature>/module.md`)
+2. If not found → `Bash(cat ~/.claude/missions/<mission>/<feature>/prd.md)`
 3. Read the PRD's Requirements section — flag any R<N> that mentions interface, screens,
    interactions, or user flows. These scope Phase 1.
 
@@ -313,7 +313,7 @@ Significant gaps → revise the layer and re-present before continuing.
 
 **Inside an initiatives cycle** (a `<mission>/<feature>` path was resolved):
 ```
-~/.claude/initiatives/<mission>/<feature>/guide.md
+~/.claude/missions/<mission>/<feature>/guide.md
 ```
 
 **Standalone** (no initiatives path, just a repo):

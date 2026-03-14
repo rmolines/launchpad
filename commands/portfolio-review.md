@@ -30,8 +30,8 @@ elif [ -n "$ARGUMENTS" ]; then
 fi
 ```
 
-- If `MISSION_FILTER` is set: scan only `~/.claude/initiatives/$MISSION_FILTER/`
-- If empty: scan all `~/.claude/initiatives/*/` (excluding `_reviews/`)
+- If `MISSION_FILTER` is set: scan only `~/.claude/missions/$MISSION_FILTER/`
+- If empty: scan all `~/.claude/missions/*/` (excluding `_reviews/`)
 
 ### Scan initiatives
 
@@ -41,10 +41,10 @@ Source the status helper:
 source ~/git/launchpad/scripts/derive-status.sh
 ```
 
-For each mission directory under `~/.claude/initiatives/` (skip `_reviews`):
+For each mission directory under `~/.claude/missions/` (skip `_reviews`):
 
 ```bash
-for mission_dir in ~/.claude/initiatives/*/; do
+for mission_dir in ~/.claude/missions/*/; do
   mission=$(basename "$mission_dir")
   [ "$mission" = "_reviews" ] && continue
   [ -n "$MISSION_FILTER" ] && [ "$mission" != "$MISSION_FILTER" ] && continue
@@ -235,13 +235,13 @@ Execute each approved action sequentially. Report each result.
 
 ```bash
 # Move to archived/
-DISC_DIR="$HOME/.claude/initiatives/<mission>/<slug>"
-ARCHIVED_DIR="$HOME/.claude/initiatives/<mission>/archived"
+DISC_DIR="$HOME/.claude/missions/<mission>/<slug>"
+ARCHIVED_DIR="$HOME/.claude/missions/<mission>/archived"
 mkdir -p "$ARCHIVED_DIR"
 mv "$DISC_DIR" "$ARCHIVED_DIR/<slug>"
 ```
 
-Report: `✓ <slug> archived at ~/.claude/initiatives/<mission>/archived/<slug>/`
+Report: `✓ <slug> archived at ~/.claude/missions/<mission>/archived/<slug>/`
 
 ### consolidar
 
@@ -253,8 +253,8 @@ Survivor is the one to keep. Absorbed is the one to merge in and then archive.
 4. Archive the absorbed discovery:
 
 ```bash
-ABSORBED_DIR="$HOME/.claude/initiatives/<mission>/<absorbed-slug>"
-ARCHIVED_DIR="$HOME/.claude/initiatives/<mission>/archived"
+ABSORBED_DIR="$HOME/.claude/missions/<mission>/<absorbed-slug>"
+ARCHIVED_DIR="$HOME/.claude/missions/<mission>/archived"
 mkdir -p "$ARCHIVED_DIR"
 mv "$ABSORBED_DIR" "$ARCHIVED_DIR/<absorbed-slug>"
 ```
@@ -280,7 +280,7 @@ Report: `✓ <slug> deprioritized (priority: low set in frontmatter)`
 1. For each new sub-slug, create a draft.md:
 
 ```bash
-mkdir -p "$HOME/.claude/initiatives/<mission>/<new-slug>"
+mkdir -p "$HOME/.claude/missions/<mission>/<new-slug>"
 ```
 
 Write a draft.md from the template (read `~/git/launchpad/templates/prd-template.md`)
@@ -293,8 +293,8 @@ derived from the original discovery's problem.
 3. Archive the original:
 
 ```bash
-ORIGINAL_DIR="$HOME/.claude/initiatives/<mission>/<original-slug>"
-ARCHIVED_DIR="$HOME/.claude/initiatives/<mission>/archived"
+ORIGINAL_DIR="$HOME/.claude/missions/<mission>/<original-slug>"
+ARCHIVED_DIR="$HOME/.claude/missions/<mission>/archived"
 mkdir -p "$ARCHIVED_DIR"
 mv "$ORIGINAL_DIR" "$ARCHIVED_DIR/<original-slug>"
 ```
@@ -313,12 +313,12 @@ Before writing, count active/archived state for each project in scope.
 
 ### Write review log
 
-Create `~/.claude/initiatives/_reviews/`:
+Create `~/.claude/missions/_reviews/`:
 
 ```bash
-mkdir -p "$HOME/.claude/initiatives/_reviews"
+mkdir -p "$HOME/.claude/missions/_reviews"
 REVIEW_DATE=$(date +%Y-%m-%d)
-REVIEW_FILE="$HOME/.claude/initiatives/_reviews/$REVIEW_DATE.md"
+REVIEW_FILE="$HOME/.claude/missions/_reviews/$REVIEW_DATE.md"
 ```
 
 If a file for today already exists, append a `-2` suffix (or `-3`, etc.) to avoid
@@ -356,7 +356,7 @@ scope: <mission-alias or "all">
 +N archived, -N consolidados, N promovidos
 ```
 
-Report: `✓ Review log written to ~/.claude/initiatives/_reviews/<date>.md`
+Report: `✓ Review log written to ~/.claude/missions/_reviews/<date>.md`
 
 ---
 

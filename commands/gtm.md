@@ -19,7 +19,7 @@ Parse `$ARGUMENTS` as the project name. If empty, ask for it.
 
 ```bash
 PROJECT="$ARGUMENTS"
-GTM_DIR="$HOME/.claude/initiatives/$PROJECT/gtm"
+GTM_DIR="$HOME/.claude/missions/$PROJECT/gtm"
 mkdir -p "$GTM_DIR/weeks" "$GTM_DIR/days"
 ```
 
@@ -69,7 +69,7 @@ Triggered when no `playbook.md` exists. This is the most important session — t
 Before starting, check what lifecycle artifacts exist:
 
 ```bash
-DISCOVERY_DIR="$HOME/.claude/initiatives/$PROJECT"
+DISCOVERY_DIR="$HOME/.claude/missions/$PROJECT"
 HAS_PRD=$([ -f "$DISCOVERY_DIR/prd.md" ] && echo "yes" || echo "no")
 HAS_RESULTS=$([ -f "$DISCOVERY_DIR/results.md" ] && echo "yes" || echo "no")
 
@@ -91,7 +91,7 @@ State this explicitly at the start: "You're at the **[pre-launch / post-ship / e
 Launch 2 subagents in parallel (model: sonnet):
 
 **Agent A — Product understanding:**
-> Read all artifacts under `~/.claude/initiatives/<project>/`: prd.md, plan.md, results.md, any shipped feature PRDs. Summarize: what was built, what problem it solves, what makes it different, what the builder's own framing suggests about positioning. Return a structured summary: product summary, observed differentiators, builder's narrative (quotes from artifacts), open positioning questions.
+> Read all artifacts under `~/.claude/missions/<project>/`: prd.md, plan.md, results.md, any shipped feature PRDs. Summarize: what was built, what problem it solves, what makes it different, what the builder's own framing suggests about positioning. Return a structured summary: product summary, observed differentiators, builder's narrative (quotes from artifacts), open positioning questions.
 
 **Agent B — Competitive landscape:**
 > Research the competitive landscape and target communities for [project name]. Use WebSearch to find: similar tools/products, how they position themselves, what communities are most active (Twitter, GitHub, HN, Reddit, Discord), what angles are getting traction in this space, and what narratives are oversaturated. Return: 3-5 competitors with positioning summaries, 3 target communities with activity level, oversaturated angles to avoid, underexplored angles that might differentiate.
@@ -135,7 +135,7 @@ Save to `$GTM_DIR/playbook.md`.
 
 **Close with:**
 ```
-Playbook created: ~/.claude/initiatives/<project>/gtm/playbook.md
+Playbook created: ~/.claude/missions/<project>/gtm/playbook.md
 
 Quarter: <quarter>
 Objective: <one sentence>
@@ -208,7 +208,7 @@ Save to `$GTM_DIR/weeks/${WEEK_ID}.md`.
 
 **Close with:**
 ```
-Week <WN> plan saved: ~/.claude/initiatives/<project>/gtm/weeks/<WEEK_ID>.md
+Week <WN> plan saved: ~/.claude/missions/<project>/gtm/weeks/<WEEK_ID>.md
 
 This week's angle: "<primary angle>"
 Total budget: <Nh>
@@ -256,7 +256,7 @@ Save to `$GTM_DIR/days/${TODAY}.md`.
 
 **Present the brief conversationally** — don't just say "file saved." Share the brief directly in the response so the human can read it without opening a file. Then close with:
 ```
-Brief saved: ~/.claude/initiatives/<project>/gtm/days/<TODAY>.md
+Brief saved: ~/.claude/missions/<project>/gtm/days/<TODAY>.md
 ```
 
 ---
@@ -279,13 +279,13 @@ Brief saved: ~/.claude/initiatives/<project>/gtm/days/<TODAY>.md
 ## Rules
 
 - **Subagents use model: sonnet.** Never opus in a subagent.
-- **All artifacts stored at `~/.claude/initiatives/<project>/gtm/`.** Structure: `playbook.md`, `weeks/YYYY-WNN.md`, `days/YYYY-MM-DD.md`.
+- **All artifacts stored at `~/.claude/missions/<project>/gtm/`.** Structure: `playbook.md`, `weeks/YYYY-WNN.md`, `days/YYYY-MM-DD.md`.
 - **GTM produces strategy and plans only.** It does not write tweets, articles, Show HN posts, or any marketing copy. The daily brief specifies what to create. The human uses content-hub skills (`/post`, `/write-article`, `/marketing-session`) to create it.
 - **Playbook is a living document.** Weekly reviews can and should update it. Channel priorities, effort allocation, positioning adjustments — nothing is locked.
 - **Missing daily logs degrade brief quality but don't block the flow.** The system works with whatever data exists. Log when you can.
 - **Metrics are self-reported.** No API integration. The weekly review prompts for current numbers.
 - **Effort budget defaults to playbook cadence** if the human doesn't specify during weekly planning.
-- **Never modify artifacts outside `~/.claude/initiatives/<project>/gtm/`** except `playbook.md` during weekly review, which is the living strategic document.
+- **Never modify artifacts outside `~/.claude/missions/<project>/gtm/`** except `playbook.md` during weekly review, which is the living strategic document.
 
 ---
 
