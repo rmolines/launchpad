@@ -1,5 +1,11 @@
 # Changelog
 
+## worktree-commit-gap — PR #12 — 2026-03-13
+**Type:** fix
+**PRD:** ~/.claude/initiatives/fl/worktree-commit-gap/prd.md
+**Commit:** `git show c59c1e8`
+**Decisions:** see LEARNINGS.md#worktree-commit-gap
+
 ## workspace-server — PR #11 — 2026-03-13
 **Type:** feat
 **PRD:** ~/.claude/initiatives/fl/workspace-server/prd.md
