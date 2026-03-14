@@ -289,6 +289,35 @@ If deliverables ran in worktree isolation:
    after resolution.
 4. If resolution is ambiguous: ask the user before proceeding
 
+### Integration commit
+
+After each deliverable is integrated (worktree merge complete) and build + tests pass,
+commit the changes immediately:
+
+1. **Stage only the files listed in `files_changed`** from the subagent's structured result.
+   Never use `git add -A` or `git add .` — stage file by file:
+   ```bash
+   git add <file1> <file2> ...   # files from files_changed only
+   ```
+
+2. **Commit with the canonical message format:**
+   ```
+   feat(<module>): D<N> — <title>
+
+   Co-Authored-By: <executor model> <noreply@anthropic.com>
+   ```
+   Where `<module>` is the feature slug, `<N>` is the deliverable number, and `<title>`
+   is the deliverable title from the plan. Use the executor model declared in the DAG
+   (e.g. `claude-sonnet-4-5`, `claude-haiku-4-5`).
+
+3. **If the commit fails due to a pre-commit hook:** fix the reported issue, re-stage
+   the same files, and retry the commit. Do not skip hooks (`--no-verify`).
+
+4. **In amendment mode:** follow the same pattern — one commit per re-executed
+   deliverable, using the same message format.
+
+Do not push. Push is handled by `/launchpad:ship`.
+
 ### Manual test checklist
 
 Generate a list of what needs human validation:
@@ -399,6 +428,7 @@ This prevents the next `/review` from seeing stale findings.
 | Sonnet by default | Never use opus in a subagent without explicit justification in the plan. |
 | Structured results | Expect and parse the result schema. Proceed on narrative but note it. |
 | Worktree for parallel writes | If two deliverables run in the same batch and modify files, use worktree isolation. |
+| Commit per deliverable | Stage only files_changed — never git add -A. Commit immediately after integration. |
 
 ---
 
@@ -413,6 +443,7 @@ This prevents the next `/review` from seeing stale findings.
 | Ignoring structured result format | Parse task_id, status, errors — don't read as narrative |
 | Skipping baseline check | Always verify build + tests before starting |
 | Enriching prompt with session context | Only use runtime context block — no session state |
+| Leaving changes uncommitted after integration | Commit per deliverable using files_changed from structured result |
 
 ---
 
