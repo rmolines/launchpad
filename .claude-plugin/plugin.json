@@ -1,7 +1,7 @@
 {
   "name": "launchpad",
   "description": "Complete product and feature lifecycle: vision (strategic roadmap), discovery, planning, delivery, review, ship, try (fast iteration), and gtm (go-to-market playbook). Transforms product ideas into validated visions and PRDs, executable plans, working code, production deployments, and marketing playbooks.",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "author": {
     "name": "rmolines"
   },
@@ -9,8 +9,7 @@
     "initiatives": {
       "type": "stdio",
       "command": "/Users/rmolines/.bun/bin/bun",
-      "args": ["src/index.ts"],
-      "cwd": "${CLAUDE_PLUGIN_ROOT}"
+      "args": ["${CLAUDE_PLUGIN_ROOT}/src/index.ts"]
     }
   }
 }
