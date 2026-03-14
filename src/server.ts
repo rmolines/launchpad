@@ -5,6 +5,9 @@ import {
   handleGetStatus,
   handleGetDocument,
 } from "./api/initiatives.js";
+import { handleListMissions } from "./api/missions.js";
+import { handleGetPlan } from "./api/plans.js";
+import { handleCockpitManual } from "./api/cockpit-manual.js";
 import { startWatcher } from "./watcher.js";
 
 const startTime = Date.now();
@@ -32,6 +35,26 @@ export function startHttpServer(port: number): ReturnType<typeof Bun.serve> {
         const upgraded = server.upgrade(req);
         if (upgraded) return undefined as unknown as Response;
         return new Response("WebSocket upgrade failed", { status: 400 });
+      }
+
+      // API: GET /api/missions
+      if (req.method === "GET" && pathname === "/api/missions") {
+        return handleListMissions();
+      }
+
+      // API: GET /api/cockpit-manual
+      if (req.method === "GET" && pathname === "/api/cockpit-manual") {
+        return handleCockpitManual();
+      }
+
+      // API: GET /api/plans/:mission/:module
+      if (req.method === "GET" && pathname.startsWith("/api/plans/")) {
+        const segments = pathname.slice("/api/plans/".length).split("/");
+        if (segments.length === 2) {
+          const [mission, module] = segments;
+          return handleGetPlan(mission, module);
+        }
+        return new Response("Not Found", { status: 404 });
       }
 
       // API: GET /api/initiatives (with optional ?type=&mission= params)
