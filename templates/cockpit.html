@@ -582,7 +582,7 @@ function renderOverview() {
         <div class="panel overflow-hidden mb-8">
           <table class="attention-table">
             <thead><tr>
-              <th>Project</th><th>Action</th><th>Type</th>
+              <th>Mission</th><th>Action</th><th>Type</th>
             </tr></thead>
             <tbody>
               ${needsAttention.map(item => `
@@ -839,14 +839,12 @@ function openPipelineModal(id) {
   document.getElementById('modal').classList.remove('hidden');
 }
 
-function closePipelineModal(e) {
-  if (e.target === document.getElementById('modal')) {
-    document.getElementById('modal').classList.add('hidden');
-  }
-}
-
 function closePipelineModalDirect() {
   document.getElementById('modal').classList.add('hidden');
+}
+
+function closePipelineModal(e) {
+  if (e.target === document.getElementById('modal')) closePipelineModalDirect();
 }
 
 // ════════════════════════════════════════════════════════════════════════

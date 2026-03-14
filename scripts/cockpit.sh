@@ -2,7 +2,7 @@
 # cockpit.sh — Scan ~/.claude/discoveries/, build unified JSON, inject into HTML template
 # Usage:
 #   bash scripts/cockpit.sh                          # scan all, open browser
-#   bash scripts/cockpit.sh --project <alias>        # filter by project
+#   bash scripts/cockpit.sh --mission <alias>        # filter by mission
 #   bash scripts/cockpit.sh --json-only              # print JSON to stdout
 #   bash scripts/cockpit.sh --refresh                # generate JSON + cockpit.md + HTML
 
@@ -17,7 +17,7 @@ DISCOVERIES_DIR="${HOME}/.claude/discoveries"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --project)
+    --mission|--project)
       FILTER_PROJECT="$2"
       shift 2
       ;;
@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown argument: $1" >&2
-      echo "Usage: $0 [--project <alias>] [--json-only] [--refresh]" >&2
+      echo "Usage: $0 [--mission <alias>] [--json-only] [--refresh]" >&2
       exit 1
       ;;
   esac
@@ -55,6 +55,11 @@ json_escape() {
   s="${s//$'\r'/}"
   s="${s//$'\t'/\\t}"
   printf '%s' "$s"
+}
+
+# nullable_json <value> — prints JSON string or null
+nullable_json() {
+  if [[ -n "$1" ]]; then printf '"%s"' "$(json_escape "$1")"; else printf 'null'; fi
 }
 
 # ─── Parse Execution DAG from plan.md ─────────────────────────────────────────
@@ -528,36 +533,12 @@ while IFS= read -r proj; do
     done < "$REPO_SCAN_FILE"
 
     # Build JSON null-safe values
-    if [[ -n "$r_milestone" ]]; then
-      milestone_json="\"$(json_escape "$r_milestone")\""
-    else
-      milestone_json="null"
-    fi
-    if [[ -n "$r_milestone_label" ]]; then
-      milestone_label_json="\"$(json_escape "$r_milestone_label")\""
-    else
-      milestone_label_json="null"
-    fi
-    if [[ -n "$r_progress" ]]; then
-      progress_json="\"$(json_escape "$r_progress")\""
-    else
-      progress_json="null"
-    fi
-    if [[ -n "$r_next_feature" ]]; then
-      next_feature_json="\"$(json_escape "$r_next_feature")\""
-    else
-      next_feature_json="null"
-    fi
-    if [[ -n "$r_alias" ]]; then
-      alias_json="\"$(json_escape "$r_alias")\""
-    else
-      alias_json="null"
-    fi
-    if [[ -n "$r_desc" ]]; then
-      desc_json="\"$(json_escape "$r_desc")\""
-    else
-      desc_json="null"
-    fi
+    milestone_json=$(nullable_json "$r_milestone")
+    milestone_label_json=$(nullable_json "$r_milestone_label")
+    progress_json=$(nullable_json "$r_progress")
+    next_feature_json=$(nullable_json "$r_next_feature")
+    alias_json=$(nullable_json "$r_alias")
+    desc_json=$(nullable_json "$r_desc")
     [[ "$r_operational" == "true" ]] && operational_json="true" || operational_json="false"
 
     project_obj="{\"id\":\"${proj_esc}\",\"alias\":${alias_json},\"description\":${desc_json},\"stage\":${milestone_json},\"stage_label\":${milestone_label_json},\"progress\":${progress_json},\"next_feature\":${next_feature_json},\"operational\":${operational_json},\"module_counts\":{\"draft\":${draft_c},\"final\":${final_c},\"archived\":${archived_c}},\"total\":${total_c}}"

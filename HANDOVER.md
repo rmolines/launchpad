@@ -1,5 +1,45 @@
 # Handover
 
+## workspace-server — 2026-03-13
+
+**What:** The launchpad frontend was a collection of ad-hoc bash scripts (cockpit.sh, plan-view.sh, vision-view.sh — ~2300 lines total) that parsed markdown with awk, injected JSON into HTML templates via `python3 str.replace()`, and opened static files in `/tmp`. Every artifact change required manually re-running a script and reopening the browser. This feature replaces that pattern with a persistent Bun server that serves all views from a single URL, hot-reloads the browser on artifact changes, and exposes both an MCP interface (for agents) and an HTTP REST API (for the browser) from the same domain logic.
+
+**PR:** #11 (9708523)
+
+**Key decisions:**
+- Dual transport in a single Bun process — MCP stdio and `Bun.serve()` HTTP coexist without conflict. `Bun.serve()` must be called before `server.connect(transport)` to avoid MCP handshake timing issues.
+- All logging via stderr — stdout is reserved for the MCP stdio stream. `console.log` anywhere corrupts MCP.
+- File-based view routing — `views/<name>.html` is served at `localhost:3333/<name>` with no manual route registration, satisfying R4 without framework overhead.
+- Alpine.js via CDN for frontend reactivity — no build step, declarative reactive state, integrates with WebSocket via `Alpine.store()`. React/Svelte rejected (require build step); HTMX rejected (needs HTML fragments, not JSON API); vanilla JS rejected (already showing limits at 2300 lines).
+- API endpoints reuse existing domain logic from `src/parser.ts`, `src/schemas.ts`, and `src/tools/status.ts` directly — no duplication between MCP tools and HTTP handlers.
+- File watcher uses Bun native `fs.watch` with 500ms debounce to avoid event flood.
+- Bash scripts (cockpit.sh, plan-view.sh, vision-view.sh) continue operating in parallel — migration is incremental, per view, tracked as separate PRDs.
+
+**Pitfalls discovered:**
+- `Bun.serve()` order matters — calling it after `server.connect(transport)` causes the HTTP server to silently fail or interfere with the MCP handshake. Always start HTTP first.
+- `console.log` corrupts MCP stdio — any log statement on stdout breaks the MCP protocol stream. Enforce `console.error` / `process.stderr.write` everywhere, including in API handlers and the file watcher.
+- File-based routing must check file existence before serving — an absent view file must return 404, not crash the server.
+- WebSocket auto-reconnect is required in `ws-client.js` — the server may restart during development; without reconnect the browser silently loses hot-reload without any indication.
+
+**Next steps:**
+- Migrate cockpit.sh logic to `src/api/` endpoints incrementally — the bash script continues working until the API covers all data it exposes.
+- Add `plan` and `vision` views to `views/` using the design system and API established in D4.
+- Validate that `Alpine.store('workspace')` update on WS "refresh" message triggers full re-render in cockpit view without page reload.
+- Add staleness check: warn if the server has been running for >24h without a restart (initiatives root may have been moved).
+
+**Key files changed:**
+- `~/git/launchpad/src/index.ts` — adds `startHttpServer()` call before MCP connect
+- `~/git/launchpad/src/server.ts` (new) — `Bun.serve()` with file-based routing, `/api/health`, `/views/shared/*`, WebSocket handler, `broadcast()` export
+- `~/git/launchpad/src/api/initiatives.ts` (new) — HTTP handlers for `GET /api/initiatives`, `/api/initiatives/:project/:slug/status`, `/api/initiatives/:project/:slug/:docType`
+- `~/git/launchpad/src/watcher.ts` (new) — `fs.watch` on initiatives root with 500ms debounce, wired to `broadcast()`
+- `~/git/launchpad/views/test.html` (new) — minimal smoke-test view for D1 validation
+- `~/git/launchpad/views/shared/tokens.css` (new) — CSS custom properties design tokens (colors, spacing, radius, font)
+- `~/git/launchpad/views/shared/components.js` (new) — Alpine.js data registrations (`statusBadge`, `initiativeCard`, `tabPanel`)
+- `~/git/launchpad/views/shared/ws-client.js` (new) — WebSocket client with auto-reconnect, connection indicator, Alpine.store refresh hook
+- `~/git/launchpad/views/cockpit.html` (new) — full cockpit dashboard (dark theme, tabs by project, expandable initiative cards, live refresh)
+
+---
+
 ## plan-ux — 2026-03-12
 
 **What:** plan.md is agent-optimized but unreadable for humans doing pre-approval or post-delivery review. Results also vanish when the chat session ends. This feature adds an HTML visualization of any plan.md and persists delivery results to disk.
