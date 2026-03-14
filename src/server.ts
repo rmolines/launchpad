@@ -4,8 +4,17 @@ import {
   handleList,
   handleGetStatus,
   handleGetDocument,
+  handleGetStage,
+  handleGetStatus3,
+  handleGetDocument3,
 } from "./api/initiatives.js";
-import { handleListMissions } from "./api/missions.js";
+import {
+  handleListMissions,
+  handleListStages,
+  handleListModules,
+  handleGetMissionModuleStatus,
+  handleGetMissionDocument,
+} from "./api/missions.js";
 import { handleGetPlan } from "./api/plans.js";
 import { handleCockpitManual } from "./api/cockpit-manual.js";
 import { startWatcher } from "./watcher.js";
@@ -47,21 +56,58 @@ export function startHttpServer(port: number): ReturnType<typeof Bun.serve> {
         return handleCockpitManual();
       }
 
-      // API: GET /api/plans/:mission/:module
+      // API: GET /api/missions/:mission/stages
+      // API: GET /api/missions/:mission/:stage/modules
+      // API: GET /api/missions/:mission/:stage/:module/status
+      // API: GET /api/missions/:mission/:stage/:module/:docType
+      if (req.method === "GET" && pathname.startsWith("/api/missions/")) {
+        const segments = pathname.slice("/api/missions/".length).split("/");
+        if (segments.length === 2 && segments[1] === "stages") {
+          // /api/missions/:mission/stages
+          return handleListStages(segments[0]!);
+        }
+        if (segments.length === 3 && segments[2] === "modules") {
+          // /api/missions/:mission/:stage/modules
+          return handleListModules(segments[0]!, segments[1]!);
+        }
+        if (segments.length === 4 && segments[3] === "status") {
+          // /api/missions/:mission/:stage/:module/status
+          return handleGetMissionModuleStatus(segments[0]!, segments[1]!, segments[2]!);
+        }
+        if (segments.length === 4) {
+          // 3-segment path: mission/stage/module — return module status
+          return handleGetMissionModuleStatus(segments[0]!, segments[1]!, segments[2]!);
+        }
+        if (segments.length === 5) {
+          // /api/missions/:mission/:stage/:module/:docType
+          return handleGetMissionDocument(segments[0]!, segments[1]!, segments[2]!, segments[3]!);
+        }
+        return new Response("Not Found", { status: 404 });
+      }
+
+      // API: GET /api/plans/:mission/:stage/:module (3-level)
+      // API: GET /api/plans/:mission/:module (2-level, backward compat)
       if (req.method === "GET" && pathname.startsWith("/api/plans/")) {
         const segments = pathname.slice("/api/plans/".length).split("/");
+        if (segments.length === 3) {
+          // 3-level: /api/plans/:mission/:stage/:module
+          return handleGetPlan(segments[0]!, segments[2]!, segments[1]!);
+        }
         if (segments.length === 2) {
-          const [mission, module] = segments;
-          return handleGetPlan(mission, module);
+          // 2-level: /api/plans/:mission/:module
+          return handleGetPlan(segments[0]!, segments[1]!);
         }
         return new Response("Not Found", { status: 404 });
       }
 
       // API: GET /api/initiatives (with optional ?type=&mission= params)
       if (req.method === "GET" && pathname === "/api/initiatives") {
-        const type = url.searchParams.get("type") ?? undefined;
-        const mission = url.searchParams.get("mission") ?? undefined;
-        return handleList({ type, mission });
+        const typeParam = url.searchParams.get("type");
+        const missionParam = url.searchParams.get("mission");
+        const params: { type?: string; mission?: string } = {};
+        if (typeParam !== null) params.type = typeParam;
+        if (missionParam !== null) params.mission = missionParam;
+        return handleList(params);
       }
 
       // API: GET /api/initiatives/:mission/:slug/status
@@ -69,7 +115,9 @@ export function startHttpServer(port: number): ReturnType<typeof Bun.serve> {
       if (req.method === "GET" && pathname.startsWith("/api/initiatives/")) {
         const segments = pathname.slice("/api/initiatives/".length).split("/");
         if (segments.length === 3) {
-          const [mission, slug, last] = segments;
+          const mission = segments[0]!;
+          const slug = segments[1]!;
+          const last = segments[2]!;
           if (last === "status") {
             return handleGetStatus(mission, slug);
           }

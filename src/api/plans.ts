@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import { readFile } from "fs/promises";
 import { join } from "path";
-import { getInitiativesRoot } from "../parser.js";
+import { getInitiativesRoot, getMissionsRoot, resolveModulePath } from "../parser.js";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json",
@@ -111,7 +111,8 @@ function parseTasks(dagText: string): Task[] {
     for (const line of lines) {
       const match = line.match(/^(\w+):\s*(.*)/);
       if (!match) continue;
-      const [, key, val] = match;
+      const key = match[1] ?? "";
+      const val = match[2] ?? "";
       switch (key) {
         case "task": task.task = val.trim(); break;
         case "title": task.title = val.trim(); break;
@@ -161,7 +162,8 @@ function parseResults(content: string): TaskResult[] {
     for (const line of lines) {
       const match = line.match(/^(\w+):\s*(.*)/);
       if (!match) continue;
-      const [, key, val] = match;
+      const key = match[1] ?? "";
+      const val = match[2] ?? "";
       switch (key) {
         case "task": result.task = val.trim(); break;
         case "status": result.status = val.trim(); break;
@@ -190,7 +192,7 @@ function parseRequirements(reqText: string): Requirement[] {
 
   for (const line of lines) {
     const match = line.match(/^- \*\*(R\d+):\*\*\s+(.+)$/);
-    if (match) {
+    if (match && match[1] !== undefined && match[2] !== undefined) {
       requirements.push({ id: match[1], text: match[2].trim() });
     }
   }
@@ -198,18 +200,31 @@ function parseRequirements(reqText: string): Requirement[] {
   return requirements;
 }
 
-export async function handleGetPlan(mission: string, module: string): Promise<Response> {
+/**
+ * Resolve module directory, supporting 2-level (initiatives) or 3-level (missions) paths.
+ * When stage is provided, uses missions root; otherwise uses initiatives root.
+ */
+function resolveModuleDir(mission: string, module: string, stage?: string): string {
+  if (stage !== undefined) {
+    return resolveModulePath(mission, stage, module);
+  }
+  const root = getInitiativesRoot();
+  return join(root, mission, module);
+}
+
+export async function handleGetPlan(mission: string, module: string, stage?: string): Promise<Response> {
   try {
-    const root = getInitiativesRoot();
-    const moduleDir = join(root, mission, module);
+    const moduleDir = resolveModuleDir(mission, module, stage);
 
     if (!existsSync(moduleDir)) {
-      return errorResponse(`Module not found: ${mission}/${module}`, 404);
+      const path = stage ? `${mission}/${stage}/${module}` : `${mission}/${module}`;
+      return errorResponse(`Module not found: ${path}`, 404);
     }
 
     const planPath = join(moduleDir, "plan.md");
     if (!existsSync(planPath)) {
-      return errorResponse(`plan.md not found for: ${mission}/${module}`, 404);
+      const path = stage ? `${mission}/${stage}/${module}` : `${mission}/${module}`;
+      return errorResponse(`plan.md not found for: ${path}`, 404);
     }
 
     let planContent: string;

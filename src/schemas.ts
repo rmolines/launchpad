@@ -60,20 +60,15 @@ export const CycleSchema = z.object({
 });
 
 export const StageSchema = z.object({
-  id: z.string(),
-  mission: z.string(),
-  created: dateField,
-  updated: dateField,
-  tags: z.array(z.string()).default([]),
+  id: z.string().optional(),
+  name: z.string().optional(),
+  hypothesis: z.string().optional(),
 });
 
 export const ModuleSchema = z.object({
-  id: z.string(),
-  mission: z.string(),
-  stage: z.string().optional(),
-  created: dateField,
-  updated: dateField,
-  tags: z.array(z.string()).default([]),
+  id: z.string().optional(),
+  name: z.string().optional(),
+  status: z.string().optional(),
 });
 
 export const SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
@@ -83,10 +78,6 @@ export const SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   "plan.md": PlanSchema,
   "review.md": ReviewSchema,
   "cycle.md": CycleSchema,
-  "stage.md": StageSchema,
-  "module.md": ModuleSchema,
-  "draft-stage.md": StageSchema,
-  "draft-module.md": DraftSchema,
 };
 
 export const DOCUMENT_TYPES = Object.keys(SCHEMAS);

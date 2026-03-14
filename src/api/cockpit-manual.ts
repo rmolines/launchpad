@@ -83,13 +83,13 @@ function parseCockpitManualYaml(content: string): CockpitManualData {
     if (currentSection === "limbo") {
       // Plain list items: "  - value"
       const match = rawLine.match(/^\s+-\s+(.+)$/);
-      if (match) {
+      if (match && match[1] !== undefined) {
         result.limbo.push(match[1].trim());
       }
     } else if (currentSection === "needs-attention") {
       // List item start: "  - project: foo" or "  - action: ..."
       const listItemMatch = rawLine.match(/^\s+-\s+(\w[\w-]*):\s*(.*)$/);
-      if (listItemMatch) {
+      if (listItemMatch && listItemMatch[1] !== undefined && listItemMatch[2] !== undefined) {
         // New list item: flush previous
         flushItem();
         currentItem = {};
@@ -101,7 +101,7 @@ function parseCockpitManualYaml(content: string): CockpitManualData {
 
       // Continuation dict key under an existing item: "    action: foo"
       const dictKeyMatch = rawLine.match(/^\s{4,}(\w[\w-]*):\s*(.*)$/);
-      if (dictKeyMatch && currentItem !== null) {
+      if (dictKeyMatch && dictKeyMatch[1] !== undefined && dictKeyMatch[2] !== undefined && currentItem !== null) {
         const key = dictKeyMatch[1].trim();
         const val = dictKeyMatch[2].trim();
         assignNeedsAttentionField(currentItem, key, val);

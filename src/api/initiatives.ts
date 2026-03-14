@@ -5,6 +5,10 @@ import {
   parseDocument,
   getInitiativesRoot,
   resolveInitiativePath,
+  getMissionsRoot,
+  listStages,
+  listModules,
+  resolveModulePath,
 } from "../parser.js";
 import { deriveStatus } from "../tools/status.js";
 import { existsSync, readdirSync, statSync } from "fs";
@@ -31,6 +35,7 @@ interface DocumentEntry {
   path: string;
   mission: string;
   module: string;
+  stage?: string;
   type: string;
   data: Record<string, unknown>;
   valid: boolean;
@@ -55,7 +60,7 @@ function parseResultsSummary(content: string): string {
  */
 function parseReviewDecision(content: string): string | null {
   const match = content.match(/^decision:\s*(.+)$/m);
-  return match ? match[1].trim() : null;
+  return (match && match[1] !== undefined) ? match[1].trim() : null;
 }
 
 /**
@@ -199,9 +204,9 @@ async function collectDocuments(opts: {
             type: file,
             data: parsed.data,
             valid,
-            errors,
+            ...(errors !== undefined ? { errors } : {}),
             ...enrichment,
-          });
+          } as EnrichedEntry);
         } catch (err) {
           entries.push({
             path: filePath,
@@ -264,6 +269,83 @@ export async function handleGetDocument(
     if (!existsSync(filePath)) {
       return errorResponse(
         `Document not found: ${mission}/${slug}/${docType}`,
+        404
+      );
+    }
+
+    const parsed = await parseDocument(filePath);
+    return jsonResponse({ data: parsed.data, content: parsed.content });
+  } catch (err) {
+    return errorResponse(String(err), 500);
+  }
+}
+
+// ─── 3-level handlers (mission / stage / module) ─────────────────────────────
+
+export async function handleGetStage(
+  mission: string,
+  stage: string
+): Promise<Response> {
+  try {
+    const root = getMissionsRoot();
+    const stageDir = join(root, mission, stage);
+    if (!existsSync(stageDir)) {
+      return errorResponse(`Stage not found: ${mission}/${stage}`, 404);
+    }
+
+    const moduleIds = listModules(mission, stage);
+    return jsonResponse({ mission, stage, modules: moduleIds });
+  } catch (err) {
+    return errorResponse(String(err), 500);
+  }
+}
+
+export async function handleGetStatus3(
+  mission: string,
+  stage: string,
+  module: string
+): Promise<Response> {
+  try {
+    const moduleDir = resolveModulePath(mission, stage, module);
+    if (!existsSync(moduleDir)) {
+      return errorResponse(`Module not found: ${mission}/${stage}/${module}`, 404);
+    }
+
+    const artifacts: string[] = [];
+    const docFiles = ["draft.md", "prd.md", "plan.md", "results.md", "review.md"];
+    for (const f of docFiles) {
+      if (existsSync(join(moduleDir, f))) artifacts.push(f);
+    }
+
+    let status = "seed";
+    if (existsSync(join(moduleDir, "review.md"))) status = "approved";
+    else if (existsSync(join(moduleDir, "results.md"))) status = "building";
+    else if (existsSync(join(moduleDir, "plan.md"))) status = "planned";
+    else if (existsSync(join(moduleDir, "prd.md"))) status = "ready";
+    else if (existsSync(join(moduleDir, "draft.md"))) status = "exploring";
+
+    return jsonResponse({ mission, stage, module, status, artifacts });
+  } catch (err) {
+    return errorResponse(String(err), 500);
+  }
+}
+
+export async function handleGetDocument3(
+  mission: string,
+  stage: string,
+  module: string,
+  docType: string
+): Promise<Response> {
+  try {
+    const moduleDir = resolveModulePath(mission, stage, module);
+    if (!existsSync(moduleDir)) {
+      return errorResponse(`Module not found: ${mission}/${stage}/${module}`, 404);
+    }
+
+    const filePath = join(moduleDir, docType);
+    if (!existsSync(filePath)) {
+      return errorResponse(
+        `Document not found: ${mission}/${stage}/${module}/${docType}`,
         404
       );
     }
