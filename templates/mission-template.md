@@ -20,6 +20,12 @@ O que prova que a tese está errada. Se isso for verdade, mata o projeto.
 
 ## Stages
 
+<!-- Stage names MUST be functional — describe a user capability, never technology.
+     Test: "if you swap the entire stack, does the name still make sense?"
+     Wrong: "OpenClaw chat integration"  →  Right: "Real-time conversational support"
+     Wrong: "React dashboard"            →  Right: "Live operational visibility"
+     Each stage gets a directory: ~/.claude/missions/<mission>/<stage-slug>/ -->
+
 ### S1: <name>
 O mínimo que entrega valor sozinho.
 - **Hypothesis:** qual hipótese esse stage valida

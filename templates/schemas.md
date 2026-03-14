@@ -192,7 +192,7 @@ The goal is to produce PRDs that an agent can execute without making product dec
 |---|---|
 | **Fail** | "MCP server expõe tool create_document(type, project, slug, fields) com validação Zod" |
 | **Pass** | "Invalid documents are rejected with a specific error before being saved" |
-| **Fail** | "Hook pre_tool_call rejeita Write em ~/.claude/initiatives/" |
+| **Fail** | "Hook pre_tool_call rejeita Write em ~/.claude/missions/" |
 | **Pass** | "No skill can write directly to the workspace — all writes go through validation" |
 
 **Validation prompt for `/discovery`:** Read each requirement in `## Requirements`. (1) Can a non-engineer verify this by using the product? If not, it's a technical spec. (2) Map each facet of the Problem section to at least one R<N>. Any unmapped facet is a coverage gap.
@@ -313,7 +313,7 @@ DECISION=$(grep "^decision:" review.md | awk '{print $2}')
 
 ## Schema 5: Delivery Results (results.md)
 
-`/delivery` writes this file after all batches complete. It persists the per-deliverable results that would otherwise be lost when the chat session ends. Saved to `~/.claude/initiatives/<mission>/<feature>/results.md`.
+`/delivery` writes this file after all batches complete. It persists the per-deliverable results that would otherwise be lost when the chat session ends. Saved to `~/.claude/missions/<mission>/<stage>/<module>/results.md`.
 
 ### Format
 
@@ -449,7 +449,7 @@ tags: []
 
 | Field | Rules |
 |---|---|
-| `id` | Mission slug. Used in filesystem paths: `~/.claude/initiatives/<id>/` |
+| `id` | Mission slug. Used in filesystem paths: `~/.claude/missions/<id>/` |
 | `status` | `draft` (in progress), `validated` (finalized), `active` (stages being executed), `paused`, `archived` |
 | Stage `Entry` | Must be a valid `/launchpad:discovery` command that the human can copy-paste |
 | Stage `Depends on` | References other stage IDs (S1, S2...) or empty for no dependencies |
@@ -462,7 +462,7 @@ Stage status is derived from the filesystem, not from mission.md:
 
 ```bash
 MISSION="ciclosp"
-for st_dir in ~/.claude/initiatives/$MISSION/*/; do
+for st_dir in ~/.claude/missions/$MISSION/*/; do
   st=$(basename "$st_dir")
   [ "$st" = "cycles" ] && continue
   if [ -d "$st_dir/archived" ]; then echo "$st: archived"
@@ -499,4 +499,170 @@ STATUS=$(grep "^status:" mission.md | head -1 | sed 's/^status: //')
 
 # List stage slugs (from Entry field)
 STAGES=$(grep "^\- \*\*Entry:\*\*" mission.md | sed 's/.*discovery [^ ]*//' | awk -F'/' '{print $NF}')
+```
+
+---
+
+## Schema 7: Stage (stage.md)
+
+`/discovery` writes this file at stage level (`~/.claude/missions/<mission>/<stage>/stage.md`).
+It decomposes a stage into modules and defines the functional scope.
+
+### Format
+
+```markdown
+---
+id: <stage-slug>
+mission: <mission-slug>
+created: <YYYY-MM-DD>
+updated: <YYYY-MM-DD>
+tags: []
+---
+# Stage: <name>
+
+## Hypothesis
+<What this stage validates — one falsifiable sentence>
+
+## Scope
+<User capabilities this stage delivers — functional, not technical>
+
+## Modules
+
+| Slug | Description | Depends on |
+|------|-------------|------------|
+| <module-slug> | <one-liner> | — |
+
+## Inherited context
+- **Thesis:** <from mission.md>
+- **Kill condition:** <from mission.md>
+- **Audience:** <from mission.md>
+
+## Constraints
+- <boundary that applies to all modules in this stage>
+```
+
+### Field rules
+
+| Field | Rules |
+|---|---|
+| `id` | Stage slug. Used in filesystem paths: `~/.claude/missions/<mission>/<id>/` |
+| `mission` | Parent mission slug |
+| `name` | Must be functional — no technology names. Test: swap the stack, does the name hold? |
+| Modules table | Each row maps to a subdirectory. `Depends on` references other module slugs or `—` for none. |
+| Inherited context | Copied or referenced from `mission.md`. Provides context for module-level discovery. |
+
+### Quality Gate
+
+```
+Stage Quality Gate
+------------------
+[ ] 1. Name is functional (no technology in the name)
+[ ] 2. Hypothesis is falsifiable
+[ ] 3. Scope describes user outcomes, not technical deliverables
+[ ] 4. Modules decompose the stage (not the other way around)
+[ ] 5. Constraints are inherited from mission context
+```
+
+### Parsing
+
+```bash
+# Read hypothesis
+HYPOTHESIS=$(awk '/^## Hypothesis/{found=1; next} found && /^$/{exit} found{print}' stage.md | head -1)
+
+# List module slugs
+MODULES=$(awk '/^## Modules/{found=1} found && /^\|.*\|.*\|/{print}' stage.md | tail -n +3 | awk -F'|' '{gsub(/^ +| +$/, "", $2); print $2}')
+```
+
+---
+
+## Schema 8: Module (module.md)
+
+`/discovery` writes this file at module level (`~/.claude/missions/<mission>/<stage>/<module>/module.md`).
+Evolution of `prd.md` — same quality gate, adds inherited constraints from stage.
+
+### Format
+
+```markdown
+---
+id: <slug>
+mission: <mission-slug>
+stage: <stage-slug>
+created: <YYYY-MM-DD>
+updated: <YYYY-MM-DD>
+tags: []
+priority: medium
+supersedes:
+---
+# Module: <name>
+
+## Inherited constraints
+- **Stage hypothesis:** <from stage.md>
+- **Stage constraints:** <from stage.md>
+- **Mission kill condition:** <from mission.md>
+
+## Problem
+<Falsifiable problem statement with measurable current state>
+
+## Requirements
+- **R1:** <functional requirement>
+- **R2:** <functional requirement>
+
+## Solution
+<How the solution addresses requirements>
+
+### Design decisions
+- <resolved decision>
+
+## Out-of-scope
+- <specific exclusion>
+
+## Technical Specs
+- **Stack:** ...
+- **Patterns:** ...
+- **Constraints:** ...
+- **Entry points:** ...
+- **Implementation notes:** ...
+
+## Risks validated
+| Risk | Type | Method | Decision | Artifact |
+|---|---|---|---|---|
+
+## Risks accepted
+- <risk> — accepted because <reason>
+
+## Investigation cycles
+| # | Type | Description | Date |
+|---|---|---|---|
+```
+
+### Field rules
+
+| Field | Rules |
+|---|---|
+| `id` | Module slug. Used in path: `~/.claude/missions/<mission>/<stage>/<id>/` |
+| `mission` | Parent mission slug |
+| `stage` | Parent stage slug. Optional — absent for `_backlog` modules |
+| `priority` | `low` / `medium` / `high` / `critical` |
+| `supersedes` | Slug of a previous module this replaces (optional) |
+| Inherited constraints | Must reference actual content from `stage.md` and `mission.md` |
+| Requirements | Format: `- **R<N>:** <text>`. Same quality gate as Schema 3. |
+
+### Compatibility
+
+`module.md` replaces `prd.md`. During transition:
+- Skills look for `module.md` first, fall back to `prd.md`
+- `prd.md` schema (Schema 3 quality gate) applies to both
+- New modules use `module.md`; existing `prd.md` files are not auto-renamed
+
+### Parsing
+
+```bash
+# Read stage field
+STAGE=$(grep "^stage:" module.md | head -1 | sed 's/^stage: //')
+
+# Read inherited constraints
+CONSTRAINTS=$(awk '/^## Inherited constraints/{found=1; next} found && /^##/{exit} found{print}' module.md)
+
+# Read requirements (same as prd.md)
+REQS=$(grep "^\- \*\*R[0-9]" module.md)
 ```
