@@ -130,6 +130,23 @@ If simplify introduced failures: revert simplify changes and proceed without the
 
 ## Phase 3 — Commit + PR
 
+### Detect feature branch
+
+```bash
+MAIN_BRANCH=$(grep "^main-branch:" .claude/project.md 2>/dev/null | sed 's/^main-branch: //' | head -1)
+MAIN_BRANCH=${MAIN_BRANCH:-main}
+CURRENT_BRANCH=$(git branch --show-current)
+
+if [ "$CURRENT_BRANCH" != "$MAIN_BRANCH" ] && [ "$CURRENT_BRANCH" != "master" ]; then
+  FEATURE_BRANCH="$CURRENT_BRANCH"
+  echo "Feature branch detected: $FEATURE_BRANCH"
+else
+  FEATURE_BRANCH=""
+fi
+```
+
+If a feature branch is detected, use it for PR creation. If not, proceed as before.
+
 ### Plugin version bump
 
 If any files in `commands/` or `.claude-plugin/` were added or modified, bump the
@@ -138,7 +155,7 @@ skills won't appear in Claude Code without a version bump.
 
 ```bash
 # Check if commands or plugin config changed
-PLUGIN_CHANGES=$(git diff origin/main...HEAD --name-only | grep -E '^(commands/|\.claude-plugin/)' | wc -l | tr -d ' ')
+PLUGIN_CHANGES=$(git diff origin/$MAIN_BRANCH...HEAD --name-only | grep -E '^(commands/|\.claude-plugin/)' | wc -l | tr -d ' ')
 if [ "$PLUGIN_CHANGES" -gt 0 ]; then
   # Bump patch version in .claude-plugin/plugin.json (e.g. 0.6.0 → 0.6.1)
   # Read current version, increment patch segment, write back
@@ -148,8 +165,8 @@ fi
 ### Detect path
 
 ```bash
-LINES_CHANGED=$(git diff origin/main...HEAD --stat | tail -1 | grep -oE '[0-9]+ (insertion|deletion)' | awk '{sum+=$1} END {print sum+0}')
-HOT_FILES_TOUCHED=$(git diff origin/main...HEAD --name-only | grep -Fxf <(echo "$HOT_FILES" | tr ' ' '\n') | wc -l | tr -d ' ')
+LINES_CHANGED=$(git diff origin/$MAIN_BRANCH...HEAD --stat | tail -1 | grep -oE '[0-9]+ (insertion|deletion)' | awk '{sum+=$1} END {print sum+0}')
+HOT_FILES_TOUCHED=$(git diff origin/$MAIN_BRANCH...HEAD --name-only | grep -Fxf <(echo "$HOT_FILES" | tr ' ' '\n') | wc -l | tr -d ' ')
 ```
 
 | Condition | Path |
@@ -175,8 +192,8 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 
 ```bash
 git fetch origin
-MERGE_BASE=$(git merge-base HEAD origin/main)
-OVERLAP=$(comm -12 <(git diff --name-only $MERGE_BASE origin/main | sort) <(git diff --name-only $MERGE_BASE HEAD | sort))
+MERGE_BASE=$(git merge-base HEAD origin/$MAIN_BRANCH)
+OVERLAP=$(comm -12 <(git diff --name-only $MERGE_BASE origin/$MAIN_BRANCH | sort) <(git diff --name-only $MERGE_BASE HEAD | sort))
 ```
 
 Hot file in overlap → **alert** the user before rebasing.
@@ -184,8 +201,8 @@ Hot file in overlap → **alert** the user before rebasing.
 ### Rebase + push
 
 ```bash
-git rebase origin/main
-git push -u origin <branch>
+git rebase origin/$MAIN_BRANCH
+git push -u origin ${FEATURE_BRANCH:-$CURRENT_BRANCH}
 ```
 
 Conflicts → list them and ask for guidance. Never `--force` without explicit approval.
@@ -194,7 +211,7 @@ Conflicts → list them and ask for guidance. Never `--force` without explicit a
 
 **Fast path:**
 ```bash
-gh pr create --title "<title>" --body "$(cat <<'EOF'
+gh pr create --base $MAIN_BRANCH --title "<title>" --body "$(cat <<'EOF'
 ## What was done
 - <bullets>
 
@@ -210,7 +227,7 @@ gh pr merge --squash
 
 **Standard path:**
 ```bash
-gh pr create --title "<title>" --body "$(cat <<'EOF'
+gh pr create --base $MAIN_BRANCH --title "<title>" --body "$(cat <<'EOF'
 ## What was done
 - <bullets>
 
@@ -393,6 +410,7 @@ Cycle closed. Next: /launchpad:discovery for the next module.
 - **Doc subagents use model: sonnet.**
 - **If any phase fails: stop and report.** Don't continue with a broken state.
 - **Execution lives in the project.** Ship orchestrates; project.md defines the commands.
+- **Feature branch detection is automatic.** If delivery created a feat/ branch, ship uses it. No manual branch specification needed.
 
 ---
 
