@@ -1,12 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { SCHEMAS, DOCUMENT_TYPES } from "../schemas.js";
-import { getInitiativesRoot, serializeDocument } from "../parser.js";
+import { getMissionsRoot, serializeDocument } from "../parser.js";
 import { updateStatusCache } from "./status.js";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { spawn } from "child_process";
 import { homedir } from "os";
+
+// Stage-level document types (path = mission/stage, no module needed)
+const STAGE_LEVEL_TYPES = new Set(["stage.md", "draft-stage.md"]);
 
 function triggerReindex(): void {
   const script = join(homedir(), ".claude", "scripts", "workspace-reindex.sh");
@@ -24,11 +27,15 @@ export function register(server: McpServer): void {
           `Document type to create. Valid types: ${DOCUMENT_TYPES.join(", ")}`
         ),
       mission: z.string().describe("Mission slug (e.g. 'fl', 'akn')"),
+      stage: z
+        .string()
+        .optional()
+        .describe("Stage slug. Defaults to '_backlog' if not provided."),
       module: z
         .string()
         .optional()
         .describe(
-          "Module slug (e.g. 'query-layer'). Not required for mission.md"
+          "Module slug (e.g. 'query-layer'). Not required for mission.md or stage-level docs"
         ),
       fields: z
         .record(z.unknown())
@@ -38,7 +45,7 @@ export function register(server: McpServer): void {
         .optional()
         .describe("Optional markdown body content"),
     },
-    async ({ type, mission, module, fields, content }) => {
+    async ({ type, mission, stage, module, fields, content }) => {
       // 1. Validate document type
       if (!DOCUMENT_TYPES.includes(type)) {
         return {
@@ -55,7 +62,7 @@ export function register(server: McpServer): void {
       }
 
       // 2. Look up schema and validate fields
-      const schema = SCHEMAS[type];
+      const schema = SCHEMAS[type]!;
       const validation = schema.safeParse(fields);
 
       if (!validation.success) {
@@ -80,11 +87,16 @@ export function register(server: McpServer): void {
       }
 
       // 3. Build directory and file path
-      const root = getInitiativesRoot();
+      const root = getMissionsRoot();
       let dir: string;
       if (type === "mission.md") {
         dir = join(root, mission);
+      } else if (STAGE_LEVEL_TYPES.has(type)) {
+        // Stage-level docs: mission/stage
+        const resolvedStage = stage || "_backlog";
+        dir = join(root, mission, resolvedStage);
       } else {
+        // Module-level docs require a module slug
         if (!module) {
           return {
             content: [
@@ -98,7 +110,8 @@ export function register(server: McpServer): void {
             ],
           };
         }
-        dir = join(root, mission, module);
+        const resolvedStage = stage || "_backlog";
+        dir = join(root, mission, resolvedStage, module);
       }
 
       const filePath = join(dir, type);
@@ -130,7 +143,8 @@ export function register(server: McpServer): void {
 
       // 7. Update status cache + trigger reindex
       if (module) {
-        await updateStatusCache(mission, module);
+        const resolvedStage = stage || "_backlog";
+        await updateStatusCache(mission, resolvedStage, module);
       }
       triggerReindex();
 

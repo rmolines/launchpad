@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ReviewSchema } from "../schemas.js";
-import { parseDocument, serializeDocument, getInitiativesRoot } from "../parser.js";
+import { parseDocument, serializeDocument, getMissionsRoot } from "../parser.js";
 import { existsSync, readdirSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
 
@@ -17,17 +17,23 @@ export type ModuleStatus =
 
 export async function deriveStatus(
   mission: string,
-  module: string
+  moduleOrStage: string,
+  module?: string
 ): Promise<{ status: ModuleStatus; artifacts: string[] }> {
-  const root = getInitiativesRoot();
+  const root = getMissionsRoot();
 
-  // Check archived first
-  const archivedPath = join(root, mission, "archived", module);
+  // Support both 2-arg (mission, module) and 3-arg (mission, stage, module) calls.
+  // When called with 2 args: moduleOrStage is actually the module, stage defaults to '_backlog'.
+  const stage = module !== undefined ? moduleOrStage : "_backlog";
+  const mod = module !== undefined ? module : moduleOrStage;
+
+  // Check archived first (archived lives at mission/archived/module)
+  const archivedPath = join(root, mission, "archived", mod);
   if (existsSync(archivedPath) && statSync(archivedPath).isDirectory()) {
-    return { status: "shipped", artifacts: ["archived/" + module] };
+    return { status: "shipped", artifacts: ["archived/" + mod] };
   }
 
-  const dir = join(root, mission, module);
+  const dir = join(root, mission, stage, mod);
   if (!existsSync(dir)) {
     return { status: "seed", artifacts: [] };
   }
@@ -45,7 +51,8 @@ export async function deriveStatus(
   };
 
   const hasDraft = checkFile("draft.md");
-  const hasPrd = checkFile("prd.md");
+  // module.md is alias for prd.md in new hierarchy
+  const hasPrd = checkFile("prd.md") || checkFile("module.md");
   const hasPlan = checkFile("plan.md");
   const hasResults = checkFile("results.md");
   const hasReview = checkFile("review.md");
@@ -108,6 +115,9 @@ export async function deriveStatus(
     return { status: "exploring", artifacts };
   }
 
+  // suppress unused variable warning
+  void hasDraft;
+
   return { status: "seed", artifacts };
 }
 
@@ -117,13 +127,19 @@ export async function deriveStatus(
  */
 export async function updateStatusCache(
   mission: string,
-  module: string
+  stageOrModule: string,
+  module?: string
 ): Promise<void> {
-  const root = getInitiativesRoot();
-  const draftPath = join(root, mission, module, "draft.md");
+  const root = getMissionsRoot();
+
+  // Support both 2-arg (mission, module) and 3-arg (mission, stage, module) calls.
+  const stage = module !== undefined ? stageOrModule : "_backlog";
+  const mod = module !== undefined ? module : stageOrModule;
+
+  const draftPath = join(root, mission, stage, mod, "draft.md");
   if (!existsSync(draftPath)) return;
 
-  const { status } = await deriveStatus(mission, module);
+  const { status } = await deriveStatus(mission, stage, mod);
 
   try {
     const doc = await parseDocument(draftPath);
@@ -142,13 +158,19 @@ export function register(server: McpServer): void {
     "Derives the current lifecycle status of an initiative by inspecting filesystem artifacts",
     {
       mission: z.string().describe("Mission name (e.g. 'fl', 'akn')"),
+      stage: z
+        .string()
+        .optional()
+        .describe("Stage slug. Defaults to '_backlog' if not provided."),
       module: z.string().describe("Module slug (e.g. 'query-layer')"),
     },
-    async ({ mission, module }) => {
-      const { status, artifacts } = await deriveStatus(mission, module);
+    async ({ mission, stage, module }) => {
+      const resolvedStage = stage || "_backlog";
+      const { status, artifacts } = await deriveStatus(mission, resolvedStage, module);
 
       const result = {
         mission,
+        stage: resolvedStage,
         module,
         status,
         artifacts,

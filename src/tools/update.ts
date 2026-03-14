@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { SCHEMAS, DOCUMENT_TYPES } from "../schemas.js";
 import {
-  getInitiativesRoot,
+  getMissionsRoot,
   parseDocument,
   serializeDocument,
 } from "../parser.js";
@@ -16,15 +16,6 @@ function triggerReindex(): void {
   spawn("bash", [script], { detached: true, stdio: "ignore" }).unref();
 }
 
-function resolveDocPath(
-  mission: string,
-  module: string,
-  file: string
-): string {
-  const root = getInitiativesRoot();
-  return join(root, mission, module, file);
-}
-
 export function register(server: McpServer): void {
   // Tool 1: init_update_fields
   server.tool(
@@ -32,6 +23,10 @@ export function register(server: McpServer): void {
     "Merges new frontmatter fields into an existing initiative document, validates against schema, then writes back",
     {
       mission: z.string().describe("Mission slug (e.g. 'fl', 'akn')"),
+      stage: z
+        .string()
+        .optional()
+        .describe("Stage slug. Defaults to '_backlog' if not provided."),
       module: z.string().describe("Module slug (e.g. 'query-layer')"),
       file: z
         .string()
@@ -42,8 +37,9 @@ export function register(server: McpServer): void {
         .record(z.unknown())
         .describe("Fields to update. New values override existing; omitted fields are preserved."),
     },
-    async ({ mission, module, file, fields }) => {
-      const filePath = resolveDocPath(mission, module, file);
+    async ({ mission, stage, module, file, fields }) => {
+      const resolvedStage = stage || "_backlog";
+      const filePath = join(getMissionsRoot(), mission, resolvedStage, module, file);
 
       // Check file exists
       if (!existsSync(filePath)) {
@@ -148,6 +144,10 @@ export function register(server: McpServer): void {
     "Replaces the content of a specific markdown section (## Heading) in an initiative document",
     {
       mission: z.string().describe("Mission slug (e.g. 'fl', 'akn')"),
+      stage: z
+        .string()
+        .optional()
+        .describe("Stage slug. Defaults to '_backlog' if not provided."),
       module: z.string().describe("Module slug (e.g. 'query-layer')"),
       file: z.string().describe("Document filename (e.g. 'draft.md', 'prd.md')"),
       heading: z
@@ -157,8 +157,9 @@ export function register(server: McpServer): void {
         ),
       content: z.string().describe("New content for the section (without the heading line itself)"),
     },
-    async ({ mission, module, file, heading, content }) => {
-      const filePath = resolveDocPath(mission, module, file);
+    async ({ mission, stage, module, file, heading, content }) => {
+      const resolvedStage = stage || "_backlog";
+      const filePath = join(getMissionsRoot(), mission, resolvedStage, module, file);
 
       // Check file exists
       if (!existsSync(filePath)) {
@@ -197,14 +198,16 @@ export function register(server: McpServer): void {
 
       // Split body into sections by ## headings
       // Each "chunk" is either pre-first-heading text, or a heading + its content
-      const headingRegex = /^(## .+)$/m;
 
       // Find all heading positions
       const headings: Array<{ heading: string; index: number }> = [];
       let match;
       const globalRegex = /^## (.+)$/gm;
       while ((match = globalRegex.exec(body)) !== null) {
-        headings.push({ heading: match[1], index: match.index });
+        const h = match[1];
+        if (h !== undefined) {
+          headings.push({ heading: h, index: match.index });
+        }
       }
 
       if (headings.length === 0) {
@@ -242,7 +245,7 @@ export function register(server: McpServer): void {
         };
       }
 
-      const targetHeading = headings[targetIdx];
+      const targetHeading = headings[targetIdx]!;
       const nextHeading = headings[targetIdx + 1];
 
       // Determine the extent of the current section content
