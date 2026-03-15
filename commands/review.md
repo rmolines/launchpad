@@ -66,6 +66,7 @@ Read these simultaneously:
 > TL;DR: try `qmd.get` with exact path → if not found → `Bash(cat <full-path>)`.
 - `git diff origin/main...HEAD` — committed changes on the branch
 - `git diff HEAD` — uncommitted changes
+- `test-checklist.md` — human validation results (if exists)
 
 Combine both diffs as the "total feature diff".
 
@@ -74,6 +75,8 @@ Combine both diffs as the "total feature diff".
 - PRD + plan found → proceed
 - Only plan → warn: `Warning: no prd.md — evaluating against plan only (weaker validation)`
 - Neither → stop: `No context found. Specify: /launchpad:review <repo>/<feature>`
+- test-checklist.md found → include in evaluator prompt
+- test-checklist.md missing → warn: `Warning: no test-checklist.md — review will rely on diff analysis only (weaker validation)`
 
 ---
 
@@ -106,6 +109,15 @@ Agent(
 >
 > **Diff (total changes on this branch):**
 > <combined git diff>
+>
+> **Human test results (if available):**
+> <full test-checklist.md content, or "No test-checklist.md found">
+>
+> If human test results are provided:
+> - Tests marked [x] are confirmed passing by the human
+> - Tests marked [ ] were NOT validated — flag as risk
+> - Tests with notes indicate issues the human observed
+> - Assess whether the tested items adequately cover the predicate
 >
 > **Evaluate the following:**
 >
@@ -142,6 +154,21 @@ Agent(
 > - Missing error handling for cases the PRD mentions
 > - Implementation shortcuts that may not satisfy the criteria
 >
+> **6. Human validation coverage**
+> If test-checklist.md was provided:
+> - How many tests passed vs. total?
+> - Do the passing tests cover the critical aspects of the predicate?
+> - Are there predicate aspects NOT covered by any test?
+> - Are there untested items ([ ]) that are critical?
+>
+> Output:
+> ### Human validation
+> | Test | Result | Covers |
+> |------|--------|--------|
+> | T1 — <title> | PASS/UNTESTED | <predicate aspect> |
+>
+> human_coverage: N/M tests passed, <adequate | insufficient> coverage
+>
 > **Output your evaluation in this format:**
 > ```
 > ## Evaluation
@@ -172,6 +199,13 @@ Agent(
 > ### Risks and concerns
 > - <concern with specific file/line reference>
 >
+> ### Human validation
+> | Test | Result | Covers |
+> |------|--------|--------|
+> | T1 — <title> | PASS/UNTESTED | <predicate aspect> |
+>
+> human_coverage: N/M tests passed, <adequate | insufficient> coverage
+>
 > ### Evaluator recommendation
 > <your honest assessment: is this ready, needs work, or fundamentally misaligned?>
 > ```
@@ -190,6 +224,7 @@ recommends; you decide. Consider the evaluator's analysis but apply your own jud
 - No out-of-scope violations
 - Problem alignment is aligned or mixed with acceptable extras
 - Evaluator concerns are minor or cosmetic
+- Human tests (if provided) are all passing, or untested items are non-critical
 
 **Back to delivery** when:
 - Requirements have FAILs on important items
@@ -197,6 +232,7 @@ recommends; you decide. Consider the evaluator's analysis but apply your own jud
 - Problem alignment shows DRIFT on core functionality
 - No out-of-scope violations (those go back to planning)
 - The plan is sound — the work just isn't done
+- Human tests show failures on critical predicate aspects
 
 **Back to planning** when:
 - Out-of-scope was violated (hard rule)
